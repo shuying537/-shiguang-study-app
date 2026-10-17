@@ -1,0 +1,12 @@
+<view class="screen {{theme}} form-page">
+ <view class="eyebrow">YOUR SUBJECTS</view><view class="title">我的科目。</view><view class="subtitle">添加后就能在首页按行记录学习时间。</view>
+ <view class="card add-subject"><view class="field-label">添加新科目</view><view class="row gap"><input class="input subject-input" maxlength="20" placeholder="例如：数学、英语" value="{{newName}}" bindinput="input" confirm-type="done" bindconfirm="add"/><button size="mini" class="primary add-btn" bindtap="add">添加</button></view></view>
+ <view class="card subject-list">
+  <view wx:for="{{subjects}}" wx:key="id" class="list-row">
+   <view wx:if="{{editingId===item.id}}" class="subject-edit"><input class="input" maxlength="20" value="{{editName}}" bindinput="editInput" focus="{{true}}"/><view class="row subject-edit-actions"><button size="mini" class="plain-btn" bindtap="cancel">取消</button><button size="mini" class="plain-btn" bindtap="saveName">保存</button></view></view>
+   <view wx:else class="row between"><view class="row subject-label"><view class="dot" style="background:{{item.color}}"></view><view class="subject-label-text"><view class="strong">{{item.name}}</view><view class="hint">{{item.is_default?'系统保留科目':'自定义科目'}}</view></view></view><view wx:if="{{!item.is_default}}" class="row subject-tools"><button size="mini" class="plain-btn" data-id="{{item.id}}" bindtap="edit">编辑</button><button size="mini" class="plain-btn danger-text" data-id="{{item.id}}" bindtap="remove">删除</button></view><text wx:else class="badge">保留</text></view>
+  </view>
+ </view>
+ <view class="note-box">“其他”是系统保留科目。删除普通科目后，历史学习时长仍会保留。</view>
+</view>
+

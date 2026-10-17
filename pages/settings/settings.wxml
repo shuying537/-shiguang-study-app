@@ -1,0 +1,35 @@
+<view class="screen {{theme}} settings-page">
+ <view class="eyebrow">YOUR STUDY SPACE</view><view class="title">我的学习。</view><view class="subtitle">回顾这一周，安排下一步。</view>
+ <view class="card weekly-card" bindtap="stats">
+  <view class="row between"><view class="strong">本周反馈</view><text class="link">{{rangeLabel}} ›</text></view>
+  <view class="weekly-total">{{summary.totalText || '0分钟'}}</view>
+  <view class="weekly-metrics"><view><view class="weekly-number">{{summary.activeDays || 0}} 天</view><view class="hint">学习天数</view></view><view><view class="weekly-number">{{summary.averageText || '0分钟'}}</view><view class="hint">日均 · 固定除以 7</view></view><view><view class="weekly-number">{{summary.completedTasks || 0}} 项</view><view class="hint">本周完成</view></view></view>
+  <view class="weekly-link">查看科目分布与每日趋势 ↗</view>
+ </view>
+ <view class="card setting-card">
+  <view class="setting-row row between" bindtap="history"><view><view class="strong">历史记录</view><view class="hint">{{recordCount}} 条学习记录 · 按日期、科目查看</view></view><text class="chevron">›</text></view>
+  <view class="divider"></view>
+  <view class="setting-row row between" bindtap="subjects"><view><view class="strong">科目管理</view><view class="hint">{{subjectCount}} 个科目 · 新增与编辑</view></view><text class="chevron">›</text></view>
+ </view>
+ <view class="settings-section">
+  <view class="card setting-card"><view class="setting-row row between" bindtap="togglePreferences"><view class="strong">外观与页面提醒</view><text class="chevron">{{showPreferences?'⌃':'›'}}</text></view>
+   <view wx:if="{{showPreferences}}">
+    <view class="divider"></view><view class="setting-row row between"><view class="strong">深色模式</view><switch checked="{{theme==='dark'}}" color="#7061D8" bindchange="themeChange"/></view>
+    <view class="divider"></view><view class="setting-row row between" bindtap="themeSystem"><view><view class="strong">跟随系统</view><view class="hint">{{settings.theme==='system'?'已开启':'未开启'}}</view></view><text class="chevron">›</text></view>
+    <view class="divider"></view><view class="setting-row row between"><view><view class="strong">今日未录入提醒</view><view class="hint">打开首页时提示，不发送后台通知</view></view><switch checked="{{settings.dailyReminderEnabled}}" color="#7061D8" bindchange="reminderChange"/></view>
+    <view wx:if="{{settings.dailyReminderEnabled}}" class="setting-row row between"><text>页面提醒时间</text><picker mode="time" value="{{settings.dailyReminderTime}}" bindchange="timeChange"><text class="link">{{settings.dailyReminderTime}}</text></picker></view>
+   </view>
+  </view>
+ </view>
+ <view class="settings-section"><view class="card setting-card"><view class="setting-row row between" bindtap="toggleDataTools"><view class="strong">数据管理</view><text class="chevron">{{showDataTools?'⌃':'›'}}</text></view>
+  <view wx:if="{{showDataTools}}">
+   <view class="divider"></view><view class="setting-row row between" bindtap="imports"><view><view class="strong">文本导入计划</view><view class="hint">粘贴文本，预览后导入</view></view><text class="chevron">›</text></view>
+   <view class="divider"></view><view class="setting-row row between" bindtap="exportCsv"><view><view class="strong">导出学习记录</view><view class="hint">复制全部记录为 CSV</view></view><text class="chevron">›</text></view>
+   <view class="divider"></view><view class="setting-row row between" bindtap="loadDemo"><view><view class="strong">体验示例</view><view class="hint">仅在没有个人数据时可用</view></view><text class="chevron">›</text></view>
+   <view class="divider"></view><view class="setting-row row between" bindtap="clear"><text class="danger-text">清空全部数据</text><text class="chevron">›</text></view>
+  </view>
+ </view></view>
+ <view class="note-box">数据保存在本机，无需登录。更换设备不会自动同步，清理微信数据可能导致记录丢失。</view>
+ <view class="settings-foot">{{version}}<br/>轻一点，久一点。</view>
+</view>
+

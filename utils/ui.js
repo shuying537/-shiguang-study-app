@@ -1,0 +1,8 @@
+const store=require('./store')
+function theme() {const s=store.getData().settings;let dark=s.theme==='dark';if(s.theme==='system'){try{const info=wx.getAppBaseInfo?wx.getAppBaseInfo():wx.getSystemInfoSync();dark=info.theme==='dark'}catch(e){dark=false}}return dark?'dark':'light'}
+function applyTheme(page) {const t=theme();page.setData({theme:t});wx.setNavigationBarColor({frontColor:t==='dark'?'#ffffff':'#000000',backgroundColor:t==='dark'?'#191823':'#F7F7FC'});try{wx.setTabBarStyle({backgroundColor:t==='dark'?'#252433':'#FFFFFF',color:t==='dark'?'#AAA5BC':'#9694A6',selectedColor:t==='dark'?'#AD9AFF':'#7061D8'})}catch(e){} }
+function toast(title) {wx.showToast({title,icon:'none',duration:2200})}
+function confirm(title,content,action) {wx.showModal({title,content,confirmText:'确认',confirmColor:'#7061D8',success:r=>{if(r.confirm){try{action()}catch(e){toast(e.message)}}}})}
+function recordView(d,r) {const s=store.recordSubject(d,r),t=d.tasks.find(t=>t.id===r.taskId);return Object.assign({},r,{subjectName:s.name,color:s.color,durationText:store.durationText(r.duration),taskName:t?t.title:r.taskName||'',subjectDeleted:!d.subjects.some(item=>item.id===r.subjectId)})}
+function taskView(d,t) {const s=store.subject(d,t.subjectId),status=store.taskStatus(t),total=d.records.filter(r=>r.taskId===t.id).reduce((a,r)=>a+r.duration,0);return Object.assign({},t,{subjectName:s.name,color:s.color,status,statusText:store.statusText(status),deadlineText:t.deadline?t.deadline.slice(5):'待补全',plannedText:t.plannedDate?t.plannedDate.slice(5):'未安排',estimatedText:t.estimatedMinutes?store.durationText(t.estimatedMinutes):'',totalText:store.durationText(total)})}
+module.exports={theme,applyTheme,toast,confirm,recordView,taskView}

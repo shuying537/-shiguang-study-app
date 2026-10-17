@@ -1,0 +1,1 @@
+.form-card{margin-top:30rpx}.time-box{margin-top:16rpx}.no-margin{margin-bottom:0}.task-status-card{margin-top:24rpx}.status-actions{display:flex;gap:14rpx;margin-top:24rpx}.status-actions button{flex:1;background:var(--bg);font-size:24rpx;line-height:68rpx;color:var(--muted)}.add-record-btn{display:block;margin:28rpx auto}

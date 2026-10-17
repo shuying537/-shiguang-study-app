@@ -1,0 +1,307 @@
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const vm = require('node:vm')
+
+process.env.TZ = 'Asia/Shanghai'
+const root = path.resolve(__dirname, '..')
+const source = fs.readFileSync(path.join(root, 'utils/store.js'), 'utf8')
+const NOW = '2026-10-15T12:00:00+08:00'
+class ClockDate extends Date {
+  constructor(...args) { super(...(args.length ? args : [NOW])) }
+  static now() { return new Date(NOW).getTime() }
+}
+const plain = value => JSON.parse(JSON.stringify(value))
+function setup(seed) {
+  const memory = {}, module = { exports: {} }, notices = [], navigation = []
+  const wx = {
+    getStorageSync(key) { return memory[key] === undefined ? '' : plain(memory[key]) },
+    setStorageSync(key,value) { memory[key] = plain(value) },
+    removeStorageSync(key) { delete memory[key] },
+    setNavigationBarColor() {}, setTabBarStyle() {}, getAppBaseInfo() { return { theme: 'light' } },
+    showToast(value) { notices.push(value.title) }, stopPullDownRefresh() {}, nextTick() {},
+    navigateTo(value) { navigation.push(value.url) }, switchTab(value) { navigation.push(value.url) }, navigateBack() {},
+    showModal(value) { value.success({confirm:true}) }, setClipboardData(value) { value.success() }
+  }
+  vm.runInNewContext(source, { module, wx, Date: ClockDate }, { filename: 'utils/store.js' })
+  const store = module.exports
+  if (seed) memory[store.KEY] = plain(seed)
+  store.ensureData()
+  const uiModule = { exports: {} }
+  vm.runInNewContext(fs.readFileSync(path.join(root,'utils/ui.js'),'utf8'), { module: uiModule, wx, require: () => store })
+  const ui = uiModule.exports
+  function page(name, query = {}) {
+    let config
+    vm.runInNewContext(fs.readFileSync(path.join(root,'pages',name,name+'.js'),'utf8'), {
+      wx, Date: ClockDate, Page(value) { config = value },
+      require(id) { if(id.endsWith('/store'))return store;if(id.endsWith('/ui'))return ui;return {setup(){}} },
+      setTimeout() { return 1 }, clearTimeout() {}
+    }, { filename: name+'.js' })
+    config.data = plain(config.data)
+    config.setData = function(value,callback) { Object.assign(this.data,value); if(callback)callback() }
+    if(config.onLoad)config.onLoad(query)
+    if(config.onShow)config.onShow()
+    return config
+  }
+  return { store, memory, wx, page, notices, navigation, ui }
+}
+function task(store, changes = {}) {
+  return store.saveTask(Object.assign({title:'数学练习',subjectId:'other',plannedDate:'2026-10-15',deadline:'2026-10-18 23:59',estimatedMinutes:30},changes))
+}
+function record(store, changes = {}) {
+  return store.saveRecord(Object.assign({subjectId:'other',date:'2026-10-15',duration:60,note:''},changes))
+}
+function event(data) { return { currentTarget: { dataset: data } } }
+
+test('weekly average always divides by seven, including empty days', () => {
+  const {store} = setup()
+  record(store,{duration:120})
+  record(store,{duration:90,date:'2026-10-14'})
+  const stats = store.stats(store.getData(),store.weekDays())
+  assert.equal(stats.total,210)
+  assert.equal(stats.activeDays,2)
+  assert.equal(stats.average,30)
+  assert.equal(stats.averageDays,7)
+  assert.equal(stats.daily.length,7)
+})
+test('monthly average uses every calendar day in that month', () => {
+  const {store} = setup()
+  record(store,{duration:310})
+  assert.equal(store.stats(store.getData(),store.monthDays()).average,10)
+})
+test('completion uses actual completion date, never deadline or estimated duration', () => {
+  const {store} = setup()
+  const t = task(store,{deadline:'2026-11-01 23:59',estimatedMinutes:120})
+  store.toggleTask(t.id)
+  let stats = store.stats(store.getData(),store.weekDays())
+  assert.equal(stats.completedTasks,1)
+  assert.equal(stats.total,0)
+  store.toggleTask(t.id)
+  assert.equal(store.stats(store.getData(),store.weekDays()).completedTasks,0)
+  assert.equal(store.getData().tasks[0].completedAt,null)
+})
+test('completion near midnight is grouped by local calendar date', () => {
+  const {store} = setup()
+  const t=task(store),d=store.getData()
+  Object.assign(d.tasks[0],{completed:true,completedAt:'2026-10-18T16:30:00.000Z'})
+  store.saveData(d)
+  assert.equal(store.completedForDays(store.getData(),store.weekDays('2026-10-15')).length,0)
+  assert.equal(store.completedForDays(store.getData(),store.weekDays('2026-10-19'))[0].id,t.id)
+})
+test('migration keeps data and abandoned history without inventing completion dates', () => {
+  const seed={schema:2,subjects:[{id:'other',name:'其他',is_default:true,color:'#aaa'}],records:[{id:'r',subjectId:'other',date:'2026-10-14',duration:30}],tasks:[{id:'old',title:'旧任务',subjectId:'other',deadline:'2026-10-16 20:00',completed:false,abandoned:true},{id:'done',title:'旧完成',subjectId:'other',deadline:'2026-10-14 20:00',completed:true}],settings:{theme:'dark'},revision:8}
+  const {store,memory}=setup(seed),d=store.getData()
+  assert.equal(d.schema,3)
+  assert.equal(d.records.length,1)
+  assert.equal(d.tasks[0].plannedDate,'2026-10-16')
+  assert.equal(d.tasks[0].abandoned,true)
+  assert.equal(d.tasks[1].completedAt,undefined)
+  assert.equal(store.stats(d,store.weekDays()).completedTasks,0)
+  assert.equal(memory[store.KEY+'_before_v2'].schema,2)
+  assert.equal(d.settings.theme,'dark')
+  store.ensureData()
+  assert.equal(memory[store.KEY+'_before_v2'].revision,8)
+})
+test('today plan follows scheduled date and separates overdue and missed plans', () => {
+  const {store}=setup()
+  const today=task(store),future=task(store,{plannedDate:'2026-10-16'}),overdue=task(store,{plannedDate:'2026-10-13',deadline:'2026-10-14 20:00'}),missed=task(store,{plannedDate:'2026-10-14'})
+  const plan=store.todayPlan(store.getData())
+  assert.deepEqual(plain(plan.tasks.map(t=>t.id)),[today.id])
+  assert.deepEqual(plain(plan.overdue.map(t=>t.id)),[overdue.id])
+  assert.deepEqual(plain(plan.carried.map(t=>t.id)),[missed.id])
+  assert.ok(!plan.tasks.some(t=>t.id===future.id))
+})
+test('quick subtraction never changes detailed or task-linked records', () => {
+  const {store}=setup(),t=task(store)
+  const manual=record(store,{duration:45,note:'保留内容',taskId:t.id})
+  store.adjustTodayDuration('other',30)
+  store.adjustTodayDuration('other',60)
+  assert.equal(store.getData().records.length,2)
+  store.adjustTodayDuration('other',-30)
+  store.adjustTodayDuration('other',-30)
+  store.adjustTodayDuration('other',-30)
+  assert.equal(store.adjustTodayDuration('other',-30).changed,0)
+  const d=store.getData()
+  assert.equal(d.records.length,1)
+  assert.equal(d.records[0].id,manual.id)
+  assert.equal(d.records[0].duration,45)
+  assert.equal(d.records[0].taskId,t.id)
+})
+test('quick correction supports undo but refuses stale undo after another edit', () => {
+  const {store}=setup()
+  store.adjustTodayDuration('other',30)
+  const removal=store.adjustTodayDuration('other',-30)
+  assert.equal(store.getData().records.length,0)
+  store.undoQuickDuration(removal.undoToken)
+  assert.equal(store.totalForDate(store.getData(),store.dateKey()),30)
+  const add=store.adjustTodayDuration('other',30)
+  record(store)
+  assert.throws(()=>store.undoQuickDuration(add.undoToken),/已有更新/)
+})
+test('editing a quick record preserves creation time and protects it from later shortcuts', () => {
+  const {store}=setup()
+  store.adjustTodayDuration('other',30)
+  const r=store.getData().records[0]
+  const saved=store.saveRecord(Object.assign({},r,{note:'详细记录',duration:45}))
+  assert.equal(saved.createdAt,r.createdAt)
+  assert.equal(store.isQuickRecord(saved),false)
+  assert.equal(store.adjustTodayDuration('other',-30).changed,0)
+})
+test('subject rename propagates, deletion retains subject name and record editability', () => {
+  const {store,ui}=setup(),s=store.addSubject('数学'),t=task(store,{subjectId:s.id})
+  const r=record(store,{subjectId:s.id,taskId:t.id})
+  store.updateSubject(s.id,'高等数学')
+  assert.equal(ui.recordView(store.getData(),store.getData().records[0]).subjectName,'高等数学')
+  store.deleteSubject(s.id)
+  const d=store.getData()
+  assert.equal(d.tasks.length,0)
+  assert.equal(d.records[0].taskId,null)
+  assert.equal(ui.recordView(d,d.records[0]).subjectName,'高等数学')
+  assert.equal(ui.recordView(d,d.records[0]).taskName,t.title)
+  assert.equal(store.stats(d,store.weekDays()).total,60)
+  assert.equal(store.saveRecord(Object.assign({},d.records[0],{duration:90})).id,r.id)
+  assert.match(store.csv(store.getData()),/高等数学/)
+})
+test('record changes recalculate actual totals; deleting a task retains its records', () => {
+  const {store}=setup(),t=task(store),r=record(store,{taskId:t.id})
+  store.deleteTask(t.id)
+  assert.equal(store.getData().records[0].duration,60)
+  assert.equal(store.getData().records[0].taskName,t.title)
+  store.saveRecord(Object.assign({},store.getData().records[0],{duration:90}))
+  assert.equal(store.stats(store.getData(),store.weekDays()).total,90)
+  store.deleteRecord(r.id)
+  assert.equal(store.stats(store.getData(),store.weekDays()).total,0)
+})
+test('dates, task estimates, duplicate renames and reserved subject are validated', () => {
+  const {store}=setup(),a=store.addSubject('数学'),b=store.addSubject('英语')
+  assert.throws(()=>task(store,{plannedDate:'2026-10-19'}),/计划日期/)
+  assert.throws(()=>task(store,{deadline:'2026-02-30 20:00'}),/有效截止/)
+  assert.throws(()=>task(store,{estimatedMinutes:7}),/预计时长/)
+  assert.throws(()=>store.updateSubject(a.id,b.name),/同名/)
+  assert.throws(()=>store.deleteSubject('other'),/不可删除/)
+  for(const duration of [0,-5,7,1500])assert.throws(()=>record(store,{duration}),/时长/)
+  assert.throws(()=>record(store,{date:'2026-10-08'}),/自然日/)
+  assert.throws(()=>record(store,{date:'2026-10-16'}),/自然日/)
+})
+test('old record may keep original date while changing its content', () => {
+  const {store}=setup(),d=store.getData()
+  d.records.push({id:'old',subjectId:'other',date:'2026-09-01',duration:30,createdAt:'original'})
+  store.saveData(d)
+  assert.equal(store.saveRecord(Object.assign({},d.records[0],{duration:60})).createdAt,'original')
+  assert.throws(()=>store.saveRecord(Object.assign({},d.records[0],{date:'2026-09-02'})),/自然日/)
+})
+test('clear removes drafts and migration backup while retaining the reserved subject', () => {
+  const {store,wx,memory}=setup()
+  store.addSubject('数学');record(store)
+  wx.setStorageSync(store.DRAFT_KEY,{duration:'30'});wx.setStorageSync(store.KEY+'_before_v2',{schema:2})
+  store.clearAll()
+  const d=store.getData()
+  assert.equal(d.subjects.length,1)
+  assert.equal(d.subjects[0].id,'other')
+  assert.equal(d.records.length,0)
+  assert.equal(d.tasks.length,0)
+  assert.equal(memory[store.DRAFT_KEY],undefined)
+  assert.equal(memory[store.KEY+'_before_v2'],undefined)
+})
+test('home displays custom subjects, updates immediately and supports undo', () => {
+  const {store,page}=setup(),s=store.addSubject('数学'),home=page('home')
+  assert.equal(home.data.subjects[0].id,s.id)
+  home.adjustDuration(event({id:s.id,minutes:30}))
+  assert.equal(home.data.subjects[0].text,'0.5h')
+  assert.equal(home.data.canUndo,true)
+  home.undo()
+  assert.equal(home.data.subjects[0].text,'0.0h')
+  assert.equal(home.data.subjects[0].canDecrease,false)
+})
+test('plan filters never count legacy abandonment as completion', () => {
+  const {store,page}=setup(),d=store.getData()
+  d.tasks.push({id:'abandoned',title:'legacy',subjectId:'other',deadline:'2026-10-14 20:00',abandoned:true,completed:false})
+  store.saveData(d)
+  const plan=page('list')
+  assert.equal(plan.data.counts.completed,0)
+  assert.equal(plan.data.legacyCount,1)
+  plan.chooseFilter(event({id:'completed'}))
+  assert.equal(plan.data.tasks.length,0)
+})
+test('history filters by learning date and archived subject', () => {
+  const {store,page}=setup(),s=store.addSubject('数学')
+  record(store,{subjectId:s.id,date:'2026-10-14'})
+  record(store,{duration:30})
+  store.deleteSubject(s.id)
+  const history=page('history')
+  assert.equal(history.data.total,2)
+  history.chooseDate({detail:{value:'2026-10-14'}})
+  assert.equal(history.data.total,1)
+  assert.equal(history.data.groups[0].records[0].subjectName,'数学')
+  const index=history.data.subjectOptions.findIndex(item=>item.id===s.id)
+  history.subjectChange({detail:{value:index}})
+  assert.equal(history.data.totalText,'1小时')
+})
+test('record form preserves unsaved input when returning from subject creation', () => {
+  const {store,page}=setup(),form=page('record')
+  form.input({currentTarget:{dataset:{field:'note'}},detail:{value:'保留草稿'}})
+  form.input({currentTarget:{dataset:{field:'duration'}},detail:{value:'45'}})
+  store.addSubject('英语')
+  form.onShow()
+  assert.equal(form.data.note,'保留草稿')
+  assert.equal(form.data.duration,'45')
+  assert.equal(form.data.subjects.length,2)
+})
+test('statistics and my page use the same average and completed count', () => {
+  const {store,page}=setup(),t=task(store)
+  record(store,{duration:210});store.toggleTask(t.id)
+  const stats=page('data'),my=page('settings')
+  assert.equal(stats.data.summary.average,30)
+  assert.equal(my.data.summary.average,30)
+  assert.equal(my.data.summary.completedTasks,1)
+  assert.equal(stats.data.completed.length,1)
+})
+
+test('moving a task to another subject detaches records without changing learning facts',()=>{
+  const {store}=setup(),t=task(store),r=record(store,{taskId:t.id,note:'保留原科目'}),subject=store.addSubject('英语')
+  store.saveTask(Object.assign({},t,{subjectId:subject.id}))
+  const saved=store.getData().records.find(item=>item.id===r.id)
+  assert.equal(saved.subjectId,'other')
+  assert.equal(saved.duration,60)
+  assert.equal(saved.note,'保留原科目')
+  assert.equal(saved.taskId,null)
+  assert.equal(saved.taskName,t.title)
+})
+test('task form can schedule tomorrow and refresh linked study without losing pending edits',()=>{
+  const {store,page}=setup(),form=page('task')
+  form.plannedChange({detail:{value:'2026-10-16'}})
+  form.input({currentTarget:{dataset:{field:'title'}},detail:{value:'明日任务'}})
+  assert.equal(form.data.deadlineDate,'2026-10-16')
+  form.save()
+  const t=store.getData().tasks[0]
+  assert.equal(t.plannedDate,'2026-10-16')
+  assert.equal(store.todayPlan(store.getData()).total,0)
+  const detail=page('task',{id:t.id})
+  detail.input({currentTarget:{dataset:{field:'note'}},detail:{value:'未保存备注'}})
+  record(store,{taskId:t.id,duration:45})
+  detail.onShow()
+  assert.equal(detail.data.totalText,'45分钟')
+  assert.equal(detail.data.note,'未保存备注')
+})
+test('record form retains archived subjects when editing history',()=>{
+  const {store,page}=setup(),s=store.addSubject('历史科目'),r=record(store,{subjectId:s.id})
+  store.deleteSubject(s.id)
+  const form=page('record',{id:r.id})
+  assert.equal(form.data.subjectId,s.id)
+  assert.match(form.data.subjects[form.data.subjectIndex].name,/历史科目/)
+  form.input({currentTarget:{dataset:{field:'duration'}},detail:{value:'90'}})
+  form.save()
+  assert.equal(store.getData().records[0].subjectId,s.id)
+  assert.equal(store.getData().records[0].duration,90)
+})
+test('restoring legacy abandonment requires a separate completion action',()=>{
+  const {store}=setup(),d=store.getData()
+  d.tasks.push({id:'legacy',title:'历史任务',subjectId:'other',plannedDate:'2026-10-15',deadline:'2026-10-18 20:00',abandoned:true,completed:false})
+  store.saveData(d)
+  assert.throws(()=>store.toggleTask('legacy'),/恢复/)
+  store.restoreTask('legacy')
+  assert.equal(store.stats(store.getData(),store.weekDays()).completedTasks,0)
+  store.toggleTask('legacy')
+  assert.equal(store.stats(store.getData(),store.weekDays()).completedTasks,1)
+})

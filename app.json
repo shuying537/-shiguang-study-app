@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/list/list",
+    "pages/data/data",
+    "pages/settings/settings",
+    "pages/record/record",
+    "pages/task/task",
+    "pages/subjects/subjects",
+    "pages/import/import",
+    "pages/history/history"
+  ],
+  "window": {
+    "navigationBarTitleText": "拾光 · 学习记录",
+    "navigationBarBackgroundColor": "#F7F7FC",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F7FC"
+  },
+  "tabBar": {
+    "color": "#9694A6",
+    "selectedColor": "#7061D8",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/list/list",
+        "text": "计划"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,11 @@
+{
+  "appId": "com.shiguang.study",
+  "appName": "拾光学习记录",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

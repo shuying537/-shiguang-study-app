@@ -1,0 +1,37 @@
+<view class="screen {{theme}} home-page">
+ <view class="row between home-header"><view><view class="eyebrow">{{dateLabel}}</view><view class="title">今天，积累一点。</view></view><button size="mini" class="plain-btn" bindtap="history">历史记录 ›</button></view>
+ <view class="hero">
+  <view class="row between"><text class="hero-label">今日学习</text><text class="hero-link" bindtap="scrollTasks">今日安排 {{todayCompleted}} / {{todayTotal}} ↓</text></view>
+  <view class="hero-total">{{todayText}}</view>
+  <view class="hero-bottom row between"><text>本周累计 {{weekText}}</text><text class="hero-link" bindtap="showStats">本周反馈 ↗</text></view>
+ </view>
+ <view wx:if="{{showNudge}}" class="note-box">今天还没记下学习时间，选一科开始吧。</view>
+ <view class="section-head"><text>记录今日学习</text><text class="link" bindtap="manageSubjects">添加 / 管理科目 ›</text></view>
+ <view class="card quick-card">
+  <view wx:for="{{subjects}}" wx:key="id" class="quick-subject-row">
+   <view class="quick-subject-meta" data-id="{{item.id}}" bindtap="viewSubject">
+    <view class="row quick-subject-name"><view class="dot" style="background:{{item.color}}"></view><text>{{item.name}}</text></view>
+    <text class="quick-total">{{item.text}}</text>
+   </view>
+   <view class="quick-actions">
+    <button size="mini" class="quick-step quick-step-minus" disabled="{{!item.canDecrease}}" data-id="{{item.id}}" data-minutes="-30" bindtap="adjustDuration" aria-label="{{item.name}}减少半小时">-0.5</button>
+    <button size="mini" class="quick-step" data-id="{{item.id}}" data-minutes="30" bindtap="adjustDuration" aria-label="{{item.name}}增加半小时">+0.5</button>
+    <button size="mini" class="quick-step quick-step-hour" data-id="{{item.id}}" data-minutes="60" bindtap="adjustDuration" aria-label="{{item.name}}增加一小时">+1h</button>
+   </view>
+  </view>
+  <view class="quick-footer row between"><text class="quick-feedback">{{quickTip || '学习内容选填，点加号即保存'}}</text><button wx:if="{{canUndo}}" size="mini" class="plain-btn" bindtap="undo">撤销</button><button wx:else size="mini" class="plain-btn" bindtap="addRecord">自定义 / 补录 ›</button></view>
+ </view>
+ <view wx:if="{{noCustomSubjects}}" class="hint first-hint">可以先用“其他”记录，也可以添加自己的科目。</view>
+ <view id="today-plan" class="section-head"><text>今日安排 <text class="small muted">{{todayCompleted}} / {{todayTotal}}</text></text><text class="link" bindtap="addTask">＋ 添加任务</text></view>
+ <view wx:if="{{!todayTotal}}" class="card empty-plan"><view class="strong">今天想完成什么？</view><view class="hint">安排一个小任务，或直接记录学习时间。</view><button size="mini" class="secondary" bindtap="addTask">安排今日任务</button></view>
+ <view wx:for="{{tasks}}" wx:key="id" class="card today-task {{item.completed?'task-done':''}}">
+  <button size="mini" class="task-check {{item.completed?'checked':''}}" data-id="{{item.id}}" bindtap="toggleTask" aria-label="{{item.completed?'取消完成':'标记完成'}}">{{item.completed?'✓':''}}</button>
+  <view class="today-task-body" data-id="{{item.id}}" bindtap="taskDetail"><view class="today-task-title">{{item.title}}</view><view class="hint">{{item.subjectName}}<text wx:if="{{item.estimatedText}}"> · 预计 {{item.estimatedText}}</text></view></view>
+  <text class="badge {{item.status==='overdue'?'danger-text':''}}" data-id="{{item.id}}" bindtap="taskDetail">{{item.statusText}}</text>
+ </view>
+ <button wx:if="{{todayTotal > 3}}" class="plain-btn expand-tasks" bindtap="expandTasks">{{expanded?'收起安排':'展开全部今日安排'}} ›</button>
+ <view wx:if="{{overdueCount}}" class="note-box pending-note" data-filter="overdue" bindtap="allTasks">还有 {{overdueCount}} 项往日任务已逾期，去计划页调整 ›</view>
+ <view wx:if="{{carriedCount}}" class="note-box pending-note" data-filter="active" bindtap="allTasks">{{carriedCount}} 项往日安排尚未完成，查看后续安排 ›</view>
+ <view class="home-bottom row between"><text class="small muted">任务完成与学习时长分别记录</text><text class="link" bindtap="allTasks">全部计划 ›</text></view>
+</view>
+
