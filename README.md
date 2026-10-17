@@ -1,47 +1,71 @@
 # 拾光 · 学习记录（安卓版）
 
-微信小程序「学习记录」的安卓封装版：小程序源码 → Web 运行时 → Capacitor WebView → APK。
-源码转换自 `学习记录小程序-v1.2`，未修改小程序源程序。
+[![Build APK](https://github.com/shuying537/-shiguang-study-app/actions/workflows/build.yml/badge.svg)](https://github.com/shuying537/-shiguang-study-app/actions/workflows/build.yml)
+
+微信小程序「学习记录」的安卓 App。**未修改任何小程序源码**，通过自研 Web 运行时把小程序跑在 WebView 里，再用 Capacitor 打包成 APK：
+
+```
+小程序源码（pages/ + utils/）  →  build-web.mjs  →  www/（纯前端页面）
+                                                        ↓
+                                              Capacitor Android WebView
+                                                        ↓
+                                                     APK
+```
+
+## 功能
+
+沿袭小程序 v1.2 的全部功能，离线可用，数据全部存在手机本地：
+
+- **首页** —— 快速记一笔学习记录，支持撤销与修改
+- **计划** —— 学习计划排期，自动区分逾期 / 待完成 / 已完成
+- **任务** —— 带预估时间的任务，可关联学习记录、跨科目迁移
+- **科目** —— 自定义科目，支持重命名、归档与删除保护
+- **历史** —— 按学习日期筛选，归档科目不丢失记录
+- **统计** —— 学习时长、平均、完成数，与「我的」页数据同源
+- **导入 / 备份** —— 数据本地迁移
+- **主题** —— 浅色 / 深色切换
+
+## 获取 APK（GitHub Actions 免费编译）
+
+1. 打开本仓库 **Actions** 页签 → 选择 **Build Android APK** → 点 **Run workflow**（推送到 `main` 时也会自动触发）。
+2. 等待约 5–10 分钟，点进本次运行，在页面底部 **Artifacts** 下载 `shiguang-debug-apk`。
+3. 解压得到 `app-debug.apk`，传到手机，允许「安装未知来源应用」后安装即可。
+
+## 本地构建
+
+需要 Node.js 20+ 和 Java 17：
+
+```bash
+npm install
+npm run build          # 小程序源码 → www/
+npx cap sync android   # 同步到 android/ 工程
+cd android && ./gradlew assembleDebug
+# 产物：android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+## 开发与测试
+
+```bash
+npm run build    # 重新构建 www/
+npm test         # 29 个单元测试（含 jsdom 真实渲染）
+```
 
 ## 目录结构
 
 ```
-build-web.mjs        # 构建脚本：小程序源码 → www/（index.html + bundle.js + style.css）
-tools/runtime.js     # 运行时纯函数：WXML 解析 / 表达式求值 / rpx→vw
-tools/runtime-web.js # 浏览器运行时：wx API shim、虚拟 DOM 渲染、hash 路由
-www/                 # 构建产物（.gitignore，CI 中由 npm run build 生成）
-android/             # Capacitor 安卓工程（需提交）
-.github/workflows/   # GitHub Actions：自动编译 APK
-```
-
-## 手动构建 APK（GitHub Actions 免费编译）
-
-1. 把本项目推送到 GitHub（私有仓库也可以）：
-
-   ```bash
-   git init
-   git add .
-   git commit -m "init"
-   git branch -M main
-   git remote add origin https://github.com/<你的用户名>/<仓库名>.git
-   git push -u origin main
-   ```
-
-2. 打开 GitHub 仓库 → **Actions** 页签 → 看到 `Build Android APK` 工作流在跑（或在 Actions 里手动点 **Run workflow**）。
-
-3. 跑完后点进工作流，在 **Artifacts** 里下载 `shiguang-debug-apk`，解压得到 `app-debug.apk`，安装到手机即可。
-
-## 本地构建
-
-```bash
-npm install
-npm run build        # 生成 www/
-npx cap sync android # 同步到 android/
-npm test             # 单元测试
+app.js / app.json / app.wxss   # 小程序源码（原样保留，未修改）
+pages/ utils/                  # 小程序页面与工具模块（原样保留）
+build-web.mjs                  # 构建脚本：小程序 → Web 页面
+tools/runtime.js               # 运行时：WXML 解析 / 表达式求值 / rpx→vw
+tools/runtime-web.js           # 浏览器运行时：wx API shim / 虚拟 DOM / hash 路由
+android/                       # Capacitor Android 原生工程
+.github/workflows/build.yml    # CI：自动编译并上传 APK
+www/                           # 构建产物（gitignore，CI 中现构建）
 ```
 
 ## 说明
 
-- 所有数据保存在 App 本地（WebView localStorage），无需网络。
-- 安装 debug APK 需要允许「安装未知来源应用」。
-- 正式发布（上应用商店等）需另行签名 `assembleRelease`，本仓库默认产 debug 包。
+- 数据保存在 App 本地（WebView localStorage），卸载 App 会清空，请自行用「导入 / 备份」功能导出。
+- 默认编译 **debug** 包，签名是调试证书；上架应用商店需自行配置 release 签名（`assembleRelease`）。
+- 小程序源项目保持原样，如需升级功能，改 `pages/` 后重新 `npm run build` 即可生效。
+
