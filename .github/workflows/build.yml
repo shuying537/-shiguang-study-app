@@ -29,6 +29,9 @@ jobs:
       - name: Build web app
         run: npm run build
 
+      - name: Run tests
+        run: npm test
+
       - name: Sync Capacitor
         run: npx cap sync android
 

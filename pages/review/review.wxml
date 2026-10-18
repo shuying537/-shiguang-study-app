@@ -1,0 +1,37 @@
+<view class="screen {{theme}} form-page review-page">
+ <view class="eyebrow">LOOK BACK, THEN MOVE</view><view class="title">每周复盘。</view><view class="subtitle">3 分钟，把本周和下周接起来。</view>
+
+ <view class="row between week-nav">
+  <text class="range-arrow" data-step="-1" bindtap="shift">‹</text>
+  <view class="week-label">{{weekLabel}}<text wx:if="{{isCurrent}}" class="small muted"> · 本周</text></view>
+  <text class="range-arrow {{isCurrent?'muted':''}}" data-step="1" bindtap="shift">›</text>
+ </view>
+
+ <view class="metrics">
+  <view class="metric"><view class="metric-number">{{stats.totalText || '0分钟'}}</view><view class="metric-label">实际学习</view></view>
+  <view class="metric"><view class="metric-number">{{stats.activeDays || 0}}<text class="unit">天</text></view><view class="metric-label">学习天数</view></view>
+ </view>
+ <view class="metrics">
+  <view class="metric"><view class="metric-number">{{plannedRate}}%</view><view class="metric-label">计划完成率 · {{plannedDone}}/{{plannedCount}}</view></view>
+  <view class="metric"><view class="metric-number">{{stats.completedTasks || 0}}<text class="unit">项</text></view><view class="metric-label">完成任务</view></view>
+ </view>
+
+ <view wx:if="{{subjectRows.length}}" class="card">
+  <view class="field-label">这一周的科目分布</view>
+  <view wx:for="{{subjectRows}}" wx:key="id" class="subject-row"><view class="row"><view class="dot" style="background:{{item.color}}"></view><text>{{item.name}}</text></view><text class="small muted">{{item.text}} · {{item.percent}}%</text></view>
+ </view>
+
+ <view class="card">
+  <view class="field"><view class="field-label">这周什么有效？</view><textarea class="textarea" maxlength="300" placeholder="例如：早上先做数学，效率最高" value="{{worked}}" data-field="worked" bindinput="input"></textarea></view>
+  <view class="field"><view class="field-label">什么卡住了？</view><textarea class="textarea" maxlength="300" placeholder="例如：晚上计划总是被手机打断" value="{{blocked}}" data-field="blocked" bindinput="input"></textarea></view>
+  <view class="field"><view class="field-label">下周只改一件事</view><textarea class="textarea short" maxlength="300" placeholder="只写一件能执行的事" value="{{change}}" data-field="change" bindinput="input"></textarea></view>
+  <button class="primary" bindtap="save">{{reviewed?'保存修改':'保存这周复盘'}}</button>
+ </view>
+
+ <view wx:if="{{history.length}}" class="section-head"><text>之前的复盘</text><text class="small muted">最近 {{history.length}} 周</text></view>
+ <view wx:for="{{history}}" wx:key="weekStart" class="card history-item" data-week="{{item.weekStart}}" bindtap="openHistory">
+  <view class="row between"><text class="strong">{{item.weekLabel}}</text><text class="chevron">›</text></view>
+  <view wx:if="{{item.change}}" class="hint">下周只改一件事：{{item.change}}</view>
+  <view wx:elif="{{item.worked}}" class="hint">{{item.worked}}</view>
+ </view>
+</view>

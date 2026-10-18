@@ -24,7 +24,9 @@ Page({
  chooseFilter(e){this.setData({filter:e.currentTarget.dataset.id,limit:20});this.refresh()},
  chooseSubject(e){this.setData({subjectFilter:e.currentTarget.dataset.id,limit:20});this.refresh()},
  create(){wx.navigateTo({url:'/pages/task/task'})},
+ importPlan(){wx.navigateTo({url:'/pages/import/import'})},
  detail(e){wx.navigateTo({url:'/pages/task/task?id='+e.currentTarget.dataset.id})},
  toggle(e){try{store.toggleTask(e.currentTarget.dataset.id);this.refresh()}catch(err){ui.toast(err.message)}},
+ postpone(e){try{store.postponeTask(e.currentTarget.dataset.id);this.refresh();ui.toast('已顺延一天')}catch(err){ui.toast(err.message)}},
  remove(e){ui.confirm('删除任务？','关联的学习记录会保留。',()=>{store.deleteTask(e.currentTarget.dataset.id);this.refresh()})}
 })

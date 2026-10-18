@@ -10,6 +10,12 @@
   <view class="setting-row row between" bindtap="history"><view><view class="strong">历史记录</view><view class="hint">{{recordCount}} 条学习记录 · 按日期、科目查看</view></view><text class="chevron">›</text></view>
   <view class="divider"></view>
   <view class="setting-row row between" bindtap="subjects"><view><view class="strong">科目管理</view><view class="hint">{{subjectCount}} 个科目 · 新增与编辑</view></view><text class="chevron">›</text></view>
+  <view class="divider"></view>
+  <view class="setting-row row between" bindtap="goals"><view><view class="strong">考试与截止日期</view><view class="hint">倒计时与关联科目</view></view><text class="chevron">›</text></view>
+  <view class="divider"></view>
+  <view class="setting-row row between" bindtap="review"><view><view class="strong">每周复盘</view><view class="hint">回顾本周，定下下周只改的一件事</view></view><text class="chevron">›</text></view>
+  <view class="divider"></view>
+  <view class="setting-row row between" bindtap="onboarding"><view><view class="strong">三分钟上手</view><view class="hint">重新设置目标与科目</view></view><text class="chevron">›</text></view>
  </view>
  <view class="settings-section">
   <view class="card setting-card"><view class="setting-row row between" bindtap="togglePreferences"><view class="strong">外观与页面提醒</view><text class="chevron">{{showPreferences?'⌃':'›'}}</text></view>
@@ -23,13 +29,16 @@
  </view>
  <view class="settings-section"><view class="card setting-card"><view class="setting-row row between" bindtap="toggleDataTools"><view class="strong">数据管理</view><text class="chevron">{{showDataTools?'⌃':'›'}}</text></view>
   <view wx:if="{{showDataTools}}">
-   <view class="divider"></view><view class="setting-row row between" bindtap="imports"><view><view class="strong">文本导入计划</view><view class="hint">粘贴文本，预览后导入</view></view><text class="chevron">›</text></view>
+   <view class="divider"></view><view class="setting-row row between" bindtap="imports"><view><view class="strong">导入学习计划</view><view class="hint">粘贴文本，自动识别科目与日期</view></view><text class="chevron">›</text></view>
    <view class="divider"></view><view class="setting-row row between" bindtap="exportCsv"><view><view class="strong">导出学习记录</view><view class="hint">复制全部记录为 CSV</view></view><text class="chevron">›</text></view>
+   <view class="divider"></view><view class="setting-row row between" bindtap="backup"><view><view class="strong">备份与恢复</view><view class="hint">导出或恢复 JSON，换机前使用</view></view><text class="chevron">›</text></view>
+   <view wx:if="{{backup.exists}}" class="divider"></view><view wx:if="{{backup.exists}}" class="setting-row row between" bindtap="restoreBackup"><view><view class="strong">恢复上一版数据</view><view class="hint">自动备份 · {{backup.tasks}} 个任务 / {{backup.records}} 条记录</view></view><text class="chevron">›</text></view>
+   <view wx:if="{{lastImport.exists}}" class="divider"></view><view wx:if="{{lastImport.exists}}" class="setting-row row between" bindtap="undoImport"><view><view class="strong">撤销上次导入</view><view class="hint">最近导入的 {{lastImport.count}} 条任务</view></view><text class="chevron">›</text></view>
    <view class="divider"></view><view class="setting-row row between" bindtap="loadDemo"><view><view class="strong">体验示例</view><view class="hint">仅在没有个人数据时可用</view></view><text class="chevron">›</text></view>
    <view class="divider"></view><view class="setting-row row between" bindtap="clear"><text class="danger-text">清空全部数据</text><text class="chevron">›</text></view>
   </view>
  </view></view>
- <view class="note-box">数据保存在本机，无需登录。更换设备不会自动同步，清理微信数据可能导致记录丢失。</view>
+ <view class="note-box">数据保存在本机，无需登录。更换设备不会自动同步，清理应用数据可能导致记录丢失，建议定期备份。</view>
  <view class="settings-foot">{{version}}<br/>轻一点，久一点。</view>
 </view>
 

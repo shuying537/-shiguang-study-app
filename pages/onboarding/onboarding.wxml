@@ -1,0 +1,37 @@
+<view class="screen {{theme}} form-page onboarding-page">
+ <view class="row between"><view class="eyebrow">FIRST 3 MINUTES</view><text class="link" bindtap="skip">跳过</text></view>
+ <view class="step-row"><view class="step-dot {{step>=0?'active':''}}">1</view><view class="step-line {{step>=1?'active':''}}"></view><view class="step-dot {{step>=1?'active':''}}">2</view><view class="step-line {{step>=2?'active':''}}"></view><view class="step-dot {{step>=2?'active':''}}">3</view></view>
+
+ <view wx:if="{{step===0}}">
+  <view class="title">先定一个目标。</view>
+  <view class="subtitle">考试、截止日期都可以。没有也可以跳过，之后在「我的 → 考试倒计时」里加。</view>
+  <view class="card">
+   <view class="field"><view class="field-label">目标名称</view><input class="input" maxlength="30" placeholder="例如：2027 考研初试" value="{{goalTitle}}" data-field="goalTitle" bindinput="input"/></view>
+   <view class="field"><view class="field-label">目标日期</view><picker mode="date" value="{{goalDate || today}}" bindchange="dateChange"><view class="picker-box">{{goalDate || '选择日期（可跳过）'}}</view></picker></view>
+  </view>
+  <view class="footer-actions"><button class="primary" bindtap="next">下一步</button></view>
+ </view>
+
+ <view wx:elif="{{step===1}}">
+  <view class="title">先建几个科目。</view>
+  <view class="subtitle">之后每天记录时长就按科目记。选中的科目会关联到目标；不选就统计全部科目。</view>
+  <view class="card">
+   <view class="chips"><view wx:for="{{chips}}" wx:key="name" class="subject-chip {{item.selected?'selected':''}}" data-name="{{item.name}}" data-id="{{item.id}}" bindtap="toggleSubject">{{item.selected?'✓ ':''}}{{item.name}}</view></view>
+   <view class="row gap add-subject-row"><input class="input" maxlength="20" placeholder="自定义科目" value="{{newSubject}}" data-field="newSubject" bindinput="input" confirm-type="done" bindconfirm="addSubject"/><button class="secondary" bindtap="addSubject">添加</button></view>
+  </view>
+  <view class="footer-actions"><button class="secondary" bindtap="back">上一步</button><button class="primary" bindtap="next">下一步</button></view>
+ </view>
+
+ <view wx:else>
+  <view class="title">可以开始了。</view>
+  <view class="subtitle">每天记一笔，每周花 3 分钟复盘，剩下的交给时间。</view>
+  <view class="card">
+   <view class="strong">{{goalTitle || '还没有设置目标'}}</view>
+   <view class="hint">{{goalDate || '随时可以补一个倒计时'}} · {{subjectIds.length ? subjectIds.length + ' 个关联科目' : '全部科目'}}</view>
+  </view>
+  <view wx:if="{{imported}}" class="note-box">导入完成后会回到这里，点「完成」即可。</view>
+  <button class="primary" bindtap="done">完成，开始使用</button>
+  <button class="secondary import-btn" bindtap="importPlan">{{imported?'再去导入一份计划':'先导入一份计划'}}</button>
+  <view class="footer-actions"><button class="secondary" bindtap="back">上一步</button></view>
+ </view>
+</view>

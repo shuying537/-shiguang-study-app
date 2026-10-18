@@ -29,10 +29,22 @@ function parse(template) {
   return document.children
 }
 
+const warnedExpressions = new Set()
 function evaluate(expression, scope) {
-  // 与真机一致：表达式里的标识符未找到时不抛错，取 undefined（渲染为空）
+  // 与真机一致：表达式求值失败（标识符不存在、读取 undefined 的属性等）只让这一处渲染为空，
+  // 不能把异常抛给整页渲染，否则一个空数组取值就会让页面整块空白。
   try { return Function('scope', 'with(scope){return (' + expression + ')}')(scope) }
-  catch (e) { if (e instanceof ReferenceError) return undefined; throw e }
+  catch (e) {
+    // 首帧渲染时页面数据还没由 onShow 填充，标识符不存在是正常现象，保持安静；
+    // 读取 undefined 的属性这类真实错误只提醒一次，方便定位但不会中断渲染。
+    if (!e || e.name !== 'ReferenceError') {
+      if (!warnedExpressions.has(expression)) {
+        warnedExpressions.add(expression)
+        try { console.warn('[wxml] 表达式渲染为空：' + expression + '（' + String(e && e.message) + '）') } catch (ignore) { }
+      }
+    }
+    return undefined
+  }
 }
 
 function interpolate(value, scope) {

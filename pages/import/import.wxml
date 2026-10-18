@@ -1,2 +1,38 @@
-﻿<view class="screen {{theme}} form-page"><view class="eyebrow">BRING YOUR PLAN IN</view><view class="title">导入学习计划。</view><view class="subtitle">每行一个任务，解析后再确认，不会直接写入。</view><view class="note-box">推荐格式：任务名 [科目] [YYYY-MM-DD HH:mm]<br/>例如：完成高数第一章 [高等数学] [2026-10-20 18:00]<br/>缺少科目自动归入“其他”，缺少截止时间默认导入后 7 天。</view><view class="card"><textarea class="import-area" maxlength="5000" placeholder="把你的计划粘贴到这里…\n\n完成线性代数第二章 [高等数学] [2026-10-20 18:00]\n背诵今日单词 [英语]" value="{{text}}" bindinput="input"></textarea><button class="primary" bindtap="parse">解析预览</button></view><view wx:if="{{showPreview}}" class="preview-section"><view class="section-head"><text>解析结果</text><text class="small muted">新增 {{newCount}} · 跳过 {{skipCount}}</text></view><view class="card preview-card"><view wx:for="{{preview}}" wx:key="line" class="preview-row"><view class="row between"><view class="preview-title">{{item.title}}</view><text wx:if="{{item.exists}}" class="badge">重复</text><text wx:elif="{{item.needsFill}}" class="badge warning">待补全</text><text wx:else class="badge success">可导入</text></view><view class="hint">{{item.subjectName}} · {{item.deadline}}</view></view></view><button class="primary" bindtap="confirmImport">确认导入 {{newCount}} 条</button></view></view>
-
+<view class="screen {{theme}} form-page import-page">
+ <view class="eyebrow">BRING YOUR PLAN IN</view><view class="title">导入学习计划。</view><view class="subtitle">每行一个任务，解析后先预览；确认之前不会写入。</view>
+ <view class="note-box">任务名后面可以写科目和截止时间，顺序不限：<br/>完成高数第一章 [高等数学] [2026-10-20 18:00]<br/>- 背 30 个单词 【英语】 10月21日 20:00<br/>复习错题 @数学 明天 晚上8点<br/>没写科目归入「其他」，没写时间默认 7 天后。</view>
+ <view class="card">
+  <textarea class="import-area" data-field="text" maxlength="5000" placeholder="把计划粘贴到这里，一行一个任务" value="{{text}}" bindinput="input"></textarea>
+  <view class="parse-row row between"><text class="hint">{{lineCount ? lineCount + ' 行内容' : '一行一个任务'}}</text><button class="primary parse-btn" bindtap="parse">解析预览</button></view>
+ </view>
+ <view wx:if="{{showPreview}}" class="preview-section">
+  <view class="section-head"><text>解析结果</text><text class="small muted">可导入 {{summary.importable}} · 跳过 {{summary.skipped}}</text></view>
+  <view wx:if="{{summary.warnings}}" class="hint preview-note">{{summary.warnings}} 条需要留意，确认前可以再看一眼。</view>
+  <view wx:if="{{summary.newSubjectsText}}" class="hint preview-note">将新建科目：{{summary.newSubjectsText}}</view>
+  <view wx:if="{{summary.defaulted}}" class="hint preview-note">{{summary.defaulted}} 条没写截止时间，默认安排在 7 天后。</view>
+  <view class="card preview-card">
+   <view wx:for="{{rows}}" wx:key="key" class="preview-row">
+    <view wx:if="{{item.editing}}" class="preview-edit">
+     <input class="input edit-input" maxlength="60" value="{{item.editTitle}}" bindinput="editTitle"/>
+     <view class="edit-line">
+      <picker mode="selector" range="{{subjectOptions}}" range-key="name" value="{{item.editSubjectIndex}}" bindchange="editSubject"><view class="picker-box">{{item.editSubjectName}}</view></picker>
+      <picker mode="date" value="{{item.editDate}}" bindchange="editDate"><view class="picker-box">{{item.editDate}}</view></picker>
+      <picker mode="time" value="{{item.editTime}}" bindchange="editTime"><view class="picker-box time-box">{{item.editTime}}</view></picker>
+     </view>
+     <view class="row edit-actions"><button size="mini" class="plain-btn" bindtap="cancelEdit">取消</button><button size="mini" class="plain-btn" bindtap="saveEdit">完成</button></view>
+    </view>
+    <view wx:else>
+     <view class="row between"><view class="preview-title">{{item.title || '（没有任务名）'}}</view><view class="row row-tools"><text class="link" data-index="{{index}}" bindtap="startEdit">编辑</text><text class="badge {{item.tone}}">{{item.badge}}</text></view></view>
+     <view wx:if="{{item.metaText}}" class="hint">{{item.metaText}}</view>
+     <view wx:if="{{item.reason}}" class="hint {{item.tone === 'danger' ? 'danger-text' : ''}}">{{item.reason}}</view>
+    </view>
+   </view>
+   <view wx:if="{{!rows.length}}" class="hint">没有解析到任务。</view>
+  </view>
+  <view class="option-row row between">
+   <view><view class="strong">自动创建缺少的科目</view><view class="hint">关闭后，这些任务会归入「其他」</view></view>
+   <switch checked="{{createSubjects}}" color="#7061D8" bindchange="toggleCreate"/>
+  </view>
+  <button class="primary" disabled="{{!summary.importable}}" bindtap="confirmImport">确认导入 {{summary.importable}} 条</button>
+ </view>
+</view>

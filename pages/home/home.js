@@ -5,7 +5,8 @@ Page({
   data: {
     theme: 'light', dateLabel: '', todayText: '0分钟', weekText: '0分钟',
     subjects: [], tasks: [], todayTotal: 0, todayCompleted: 0, overdueCount: 0,
-    carriedCount: 0, quickTip: '', canUndo: false, expanded: false, showNudge: false
+    carriedCount: 0, quickTip: '', canUndo: false, expanded: false, showNudge: false,
+    goal: null, reviewDue: false, showOnboarding: false
   },
   onShow() { this.refresh() },
   onPullDownRefresh() { this.refresh(); wx.stopPullDownRefresh() },
@@ -28,7 +29,10 @@ Page({
         subjects, tasks: this.data.expanded?tasks:tasks.slice(0,3),
         todayTotal: plan.total, todayCompleted: plan.completed,
         overdueCount: plan.overdue.length, carriedCount: plan.carried.length,
-        noCustomSubjects: d.subjects.length===1
+        noCustomSubjects: d.subjects.length===1,
+        goal: store.nearestGoal(d,today),
+        reviewDue: store.reviewDue(d,today),
+        showOnboarding: store.needsOnboarding()
       })
       this.checkNudge(d,today)
     } catch(e) { ui.toast(e.message) }
@@ -70,6 +74,10 @@ Page({
     wx.switchTab({url:'/pages/list/list'})
   },
   showStats() {wx.navigateTo({url:'/pages/data/data'})},
+  openGoals() {wx.navigateTo({url:'/pages/goals/goals'})},
+  openReview() {wx.navigateTo({url:'/pages/review/review'})},
+  startOnboarding() {wx.navigateTo({url:'/pages/onboarding/onboarding'})},
+  dismissOnboarding() {try{store.dismissOnboarding();this.refresh()}catch(e){ui.toast(e.message)}},
   scrollTasks() {wx.pageScrollTo({selector:'#today-plan',duration:250})},
   history() {wx.navigateTo({url:'/pages/history/history'})},
   onHide() {this.clearUndo()},

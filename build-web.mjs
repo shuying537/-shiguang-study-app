@@ -2,7 +2,7 @@
 // 输入：app.json/app.js/app.wxss + pages/*.{js,wxml,wxss} + utils/*.js
 // 输出：www/index.html + www/style.css + www/bundle.js + www/runtime.js + www/runtime-web.js
 // bundle 用最小模块注册表：CommonJS require 相对路径按模块目录解析，Page/App 由全局捕获。
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
@@ -17,9 +17,10 @@ const pages = appJson.pages
 const modules = new Map()
 modules.set('app', readFileSync(join(root, 'app.js'), 'utf8'))
 for (const page of pages) modules.set(page, readFileSync(join(root, page + '.js'), 'utf8'))
-for (const part of ['store', 'ui', 'charts']) {
-  const p = join(root, 'utils', part + '.js')
-  if (existsSync(p)) modules.set('utils/' + part, readFileSync(p, 'utf8'))
+// utils 下的模块全部打进 bundle，页面新增工具模块时无需再改构建脚本
+for (const file of readdirSync(join(root, 'utils'))) {
+  if (!file.endsWith('.js')) continue
+  modules.set('utils/' + file.slice(0, -3), readFileSync(join(root, 'utils', file), 'utf8'))
 }
 
 // ---------- 模板 ----------
@@ -62,6 +63,12 @@ body[data-theme=dark]{--modal-bg:#252433;--modal-ink:#EDEAF8;--modal-line:#37344
 .wx-modal-btn{flex:1;padding:14px 0;background:none;color:var(--modal-muted);font-size:15px;border-right:1px solid var(--modal-line)}
 .wx-modal-btn:last-child{border-right:0}
 .wx-modal-btn-main{color:var(--modal-focus);font-weight:600}
+/* 渲染失败兜底（不会把用户留在纯白屏） */
+.wx-render-error{padding:96px 32px 48px;text-align:center;color:#9995ac;font-size:14px;line-height:1.7}
+.wx-render-error-title{font-size:17px;font-weight:600;color:#282438;margin-bottom:8px}
+.wx-render-error-btn{margin-top:24px;padding:12px 28px;border-radius:12px;background:#7061d8;color:#fff;font-size:15px}
+body[data-theme=dark] .wx-render-error{color:#aaa5bc}
+body[data-theme=dark] .wx-render-error-title{color:#edeaf8}
 /* switch（input type=checkbox 外观模拟） */
 input.wx-switch{position:relative;width:52px;height:32px;border-radius:16px;background:#D7D5E0;transition:background .2s;-webkit-appearance:none;appearance:none}
 input.wx-switch::before{content:"";position:absolute;top:2px;left:2px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s}

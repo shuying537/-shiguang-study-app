@@ -8,6 +8,10 @@
     "pages/task/task",
     "pages/subjects/subjects",
     "pages/import/import",
+    "pages/backup/backup",
+    "pages/onboarding/onboarding",
+    "pages/goals/goals",
+    "pages/review/review",
     "pages/history/history"
   ],
   "window": {

@@ -1,0 +1,13 @@
+.week-nav{margin:26rpx 0 10rpx;gap:20rpx}
+.week-label{flex:1;text-align:center;font-size:30rpx;font-weight:650}
+.range-arrow{font-size:40rpx;color:var(--accent);padding:0 16rpx;line-height:1.2}
+.range-arrow.muted{color:var(--line)}
+.metrics{display:flex;gap:18rpx;margin-bottom:18rpx}
+.metric{flex:1;background:var(--card);border-radius:24rpx;padding:24rpx;box-shadow:0 6rpx 24rpx rgba(38,30,76,.025)}
+.metric-number{font-size:38rpx;font-weight:700;color:var(--ink)}
+.metric-number .unit{font-size:22rpx;font-weight:500;color:var(--muted);margin-left:6rpx}
+.metric-label{font-size:22rpx;color:var(--muted);margin-top:8rpx;line-height:1.5}
+.subject-row{display:flex;justify-content:space-between;align-items:center;padding:16rpx 0;border-bottom:1rpx solid var(--line);font-size:25rpx}
+.subject-row:last-child{border-bottom:0}
+.textarea.short{height:120rpx}
+.history-item{padding:24rpx 28rpx}

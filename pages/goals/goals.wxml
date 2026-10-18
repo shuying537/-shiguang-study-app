@@ -1,0 +1,26 @@
+<view class="screen {{theme}} form-page goals-page">
+ <view class="eyebrow">WHAT ARE YOU AIMING AT</view><view class="title">考试与截止日期。</view><view class="subtitle">给学习一个终点，首页会显示剩余天数。</view>
+
+ <view class="card">
+  <view class="row between"><view class="strong">{{editingId?'编辑目标':'添加目标'}}</view><text wx:if="{{editingId}}" class="link" bindtap="cancel">取消</text></view>
+  <view class="field"><view class="field-label">目标名称</view><input class="input" maxlength="30" data-field="title" placeholder="例如：2027 考研初试 / 期末周" value="{{title}}" bindinput="input"/></view>
+  <view class="field"><view class="field-label">目标日期</view><picker mode="date" value="{{date || today}}" bindchange="dateChange"><view class="picker-box">{{date || '选择日期'}}</view></picker></view>
+  <view class="field">
+   <view class="field-label">关联科目 <text class="small muted">· 不选则统计全部</text></view>
+   <view class="chips"><view wx:for="{{subjects}}" wx:key="id" class="subject-chip {{item.selected?'selected':''}}" data-id="{{item.id}}" bindtap="toggleSubject">{{item.selected?'✓ ':''}}{{item.name}}</view><view wx:if="{{!subjects.length}}" class="hint">还没有自定义科目，先去添加。</view></view>
+   <text class="hint link" bindtap="manageSubjects">＋ 管理科目</text>
+  </view>
+  <view class="field"><view class="field-label">备注 <text class="small muted">· 选填</text></view><input class="input" maxlength="100" data-field="note" placeholder="例如：目标分数 / 每天 2 小时" value="{{note}}" bindinput="input"/></view>
+  <button class="primary" bindtap="save">{{editingId?'保存修改':'添加目标'}}</button>
+ </view>
+
+ <view class="section-head"><text>我的目标</text><text class="small muted">{{goals.length}} 个</text></view>
+ <view wx:for="{{goals}}" wx:key="id" class="card goal-row">
+  <view class="row between">
+   <view class="goal-main"><view class="goal-title">{{item.title}}</view><view class="hint">{{item.dateText}} · {{item.subjectText}}</view><view class="hint">本周已投入 {{item.weekText}}</view><view wx:if="{{item.note}}" class="hint">{{item.note}}</view></view>
+   <view class="goal-days {{item.daysLeft<0?'muted':''}}">{{item.daysText}}</view>
+  </view>
+  <view class="goal-actions row"><button size="mini" class="plain-btn" data-id="{{item.id}}" bindtap="edit">编辑</button><button size="mini" class="plain-btn danger-text" data-id="{{item.id}}" bindtap="remove">删除</button></view>
+ </view>
+ <view wx:if="{{!goals.length}}" class="card empty"><view class="empty-title">还没有目标</view><view class="subtitle">加一个考试或截止日期，学习会更有方向。</view></view>
+</view>

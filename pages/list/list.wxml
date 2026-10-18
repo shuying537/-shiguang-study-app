@@ -1,5 +1,5 @@
 <view class="screen {{theme}} task-page">
- <view class="eyebrow">ONE THING AT A TIME</view><view class="row between"><view class="title">学习计划。</view><button size="mini" class="mini-add" bindtap="create">＋</button></view><view class="subtitle">安排要做的事，完成后轻轻勾一下。</view>
+ <view class="eyebrow">ONE THING AT A TIME</view><view class="row between"><view class="title">学习计划。</view><view class="row header-actions"><text class="link" bindtap="importPlan">导入</text><button size="mini" class="mini-add" bindtap="create" aria-label="新建学习任务">＋</button></view></view><view class="subtitle">安排要做的事，完成后轻轻勾一下。</view>
  <view class="tab-switch"><view wx:for="{{tabs}}" wx:key="id" class="tab-item {{filter===item.id?'active':''}}" data-id="{{item.id}}" bindtap="chooseFilter">{{item.label}} <text class="tab-count">{{counts[item.id]}}</text></view></view>
  <scroll-view scroll-x class="subject-scroll"><view class="subject-inline"><view class="filter-chip {{subjectFilter==='all'?'selected':''}}" data-id="all" bindtap="chooseSubject">所有科目</view><view wx:for="{{subjects}}" wx:key="id" class="filter-chip {{subjectFilter===item.id?'selected':''}}" data-id="{{item.id}}" bindtap="chooseSubject">{{item.name}}</view></view></scroll-view>
  <view wx:if="{{filter==='all' && legacyCount}}" class="hint task-hint">保留 {{legacyCount}} 项旧版已放弃任务，不计入完成数量。</view>
@@ -11,9 +11,9 @@
   </view>
   <view class="row between task-footer"><text class="small muted">{{item.estimatedText?'预计 '+item.estimatedText+' · ':''}}已学 {{item.totalText}}</text><text class="badge {{item.status==='overdue'?'danger-text':''}}">{{item.statusText}}</text></view>
   <view wx:if="{{item.needsFill}}" class="hint danger-text">请先在详情中补全任务信息。</view>
-  <view wx:if="{{item.status==='overdue'}}" class="overdue-actions"><button size="mini" data-id="{{item.id}}" bindtap="detail">调整日期</button><button size="mini" class="danger-text" data-id="{{item.id}}" bindtap="remove">删除任务</button></view>
+  <view wx:if="{{item.status==='overdue'}}" class="overdue-actions"><button size="mini" data-id="{{item.id}}" bindtap="detail">调整日期</button><button size="mini" data-id="{{item.id}}" bindtap="postpone">顺延一天</button><button size="mini" class="danger-text" data-id="{{item.id}}" bindtap="remove">删除任务</button></view>
  </view>
- <view wx:if="{{!tasks.length}}" class="card empty"><view class="empty-icon">☷</view><view class="empty-title">{{filter==='all'?'还没有学习任务':'这里暂时没有任务'}}</view><view class="subtitle">先安排一件容易开始的小事。</view><button class="primary" bindtap="create">创建学习任务</button></view>
+ <view wx:if="{{!tasks.length}}" class="card empty"><view class="empty-icon">☷</view><view class="empty-title">{{filter==='all'?'还没有学习任务':'这里暂时没有任务'}}</view><view class="subtitle">先安排一件容易开始的小事。</view><button class="primary" bindtap="create">创建学习任务</button><button class="secondary" bindtap="importPlan">从文本导入计划</button></view>
  <view wx:if="{{tasks.length}}" class="small muted end-note">{{tasks.length < total ? '向上滑动加载更多' : '已经展示全部任务'}} · {{total}} 项</view>
 </view>
 

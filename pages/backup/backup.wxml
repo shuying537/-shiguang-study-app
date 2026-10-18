@@ -1,0 +1,21 @@
+<view class="screen {{theme}} form-page backup-page">
+ <view class="eyebrow">KEEP IT SAFE</view><view class="title">备份与恢复。</view><view class="subtitle">数据只存在本机；换机、清空或卸载前，先复制一份备份。</view>
+ <view class="card">
+  <view class="row between"><view class="strong">当前数据</view><text class="hint">{{info.tasks}} 个任务 · {{info.records}} 条记录 · {{info.subjects}} 个科目</text></view>
+  <textarea class="backup-area" maxlength="200000" value="{{exportText}}" disabled="{{true}}"></textarea>
+  <view class="row backup-actions"><button class="secondary" bindtap="copy">复制备份文本</button><button class="secondary" bindtap="exportFile">导出为文件</button></view>
+  <view class="hint">备份是一段 JSON 文本。Android 版「导出为文件」会打开系统分享或下载；没有反应时用复制。</view>
+ </view>
+ <view wx:if="{{info.backup.exists}}" class="card">
+  <view class="strong">上一版自动备份</view><view class="hint">{{info.backup.tasks}} 个任务 · {{info.backup.records}} 条记录 · {{info.backup.subjects}} 个科目</view>
+  <button class="secondary" bindtap="restoreAuto">恢复上一版数据</button>
+  <view class="hint">每次保存前都会自动保留上一版，适合撤销误删或误清空。</view>
+ </view>
+ <view class="card">
+  <view class="strong">从备份文本或文件恢复</view>
+  <textarea class="backup-area import-area" data-field="importText" maxlength="200000" placeholder="把之前复制的备份 JSON 粘贴到这里" value="{{importText}}" bindinput="input"></textarea>
+  <view class="file-pick"><view class="secondary file-btn">选择备份文件</view><input class="file-input" type="file" accept=".json,application/json" bindchange="fileChange"/></view>
+  <button class="primary" bindtap="restore">恢复这份备份</button>
+  <view class="hint">恢复会覆盖当前科目、任务、记录和设置；当前数据会先自动备份。</view>
+ </view>
+</view>

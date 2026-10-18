@@ -1,9 +1,19 @@
 <view class="screen {{theme}} home-page">
  <view class="row between home-header"><view><view class="eyebrow">{{dateLabel}}</view><view class="title">今天，积累一点。</view></view><button size="mini" class="plain-btn" bindtap="history">历史记录 ›</button></view>
+ <view wx:if="{{showOnboarding}}" class="card onboard-card">
+  <view class="row between"><view class="eyebrow">FIRST 3 MINUTES</view><text class="link" bindtap="dismissOnboarding">直接使用</text></view>
+  <view class="onboard-title">花 3 分钟，把它变成你的节奏。</view>
+  <view class="hint">定一个考试日期、选几个科目，之后每天只用记一笔。</view>
+  <view class="row onboard-actions"><button class="primary" bindtap="startOnboarding">开始设置</button></view>
+ </view>
  <view class="hero">
   <view class="row between"><text class="hero-label">今日学习</text><text class="hero-link" bindtap="scrollTasks">今日安排 {{todayCompleted}} / {{todayTotal}} ↓</text></view>
   <view class="hero-total">{{todayText}}</view>
   <view class="hero-bottom row between"><text>本周累计 {{weekText}}</text><text class="hero-link" bindtap="showStats">本周反馈 ↗</text></view>
+ </view>
+ <view wx:if="{{goal}}" class="card goal-card" bindtap="openGoals">
+  <view class="row between"><view class="goal-main"><view class="eyebrow">COUNTDOWN</view><view class="goal-title">{{goal.title}}</view></view><view class="goal-days {{goal.daysLeft<0?'muted':''}}">{{goal.daysText}}</view></view>
+  <view class="hint">{{goal.dateText}} · {{goal.subjectText}}<text wx:if="{{goal.weekMinutes}}"> · 本周 {{goal.weekText}}</text></view>
  </view>
  <view wx:if="{{showNudge}}" class="note-box">今天还没记下学习时间，选一科开始吧。</view>
  <view class="section-head"><text>记录今日学习</text><text class="link" bindtap="manageSubjects">添加 / 管理科目 ›</text></view>
@@ -32,6 +42,9 @@
  <button wx:if="{{todayTotal > 3}}" class="plain-btn expand-tasks" bindtap="expandTasks">{{expanded?'收起安排':'展开全部今日安排'}} ›</button>
  <view wx:if="{{overdueCount}}" class="note-box pending-note" data-filter="overdue" bindtap="allTasks">还有 {{overdueCount}} 项往日任务已逾期，去计划页调整 ›</view>
  <view wx:if="{{carriedCount}}" class="note-box pending-note" data-filter="active" bindtap="allTasks">{{carriedCount}} 项往日安排尚未完成，查看后续安排 ›</view>
+ <view wx:if="{{reviewDue}}" class="card review-card" bindtap="openReview">
+  <view class="row between"><view><view class="strong">这周的复盘还没做</view><view class="hint">3 分钟，把本周和下周接起来。</view></view><text class="chevron">›</text></view>
+ </view>
  <view class="home-bottom row between"><text class="small muted">任务完成与学习时长分别记录</text><text class="link" bindtap="allTasks">全部计划 ›</text></view>
 </view>
 

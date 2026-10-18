@@ -186,7 +186,10 @@
           detail.x = e.clientX; detail.y = e.clientY
           if (type === 'longpress') detail.action = 'longpress'
         } else if (type === 'input' || type === 'confirm' || type === 'blur') detail.value = e.target.value
-        else if (type === 'change') detail.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
+        else if (type === 'change') {
+          if (e.target.type === 'file') detail.files = Array.from(e.target.files || [])
+          else detail.value = e.target.type === 'checkbox' ? e.target.checked : e.target.value
+        }
         const evObj = { currentTarget: { dataset }, target: { dataset }, detail, stopPropagation: () => e.stopPropagation() }
         if (type === 'confirm') { if (e.key && e.key !== 'Enter') return }
         fn(evObj)
@@ -295,7 +298,16 @@
       data: JSON.parse(JSON.stringify(cfg.data || {})),
       _route: route,
       _el: null,
-      setData(patch, cb) { Object.assign(this.data, patch); refresh(this); cb && cb() },
+      setData(patch, cb) {
+        // 同一个 tick 里连续 setData（主题 + 数据）只重绘一次，减少整页重建
+        Object.assign(this.data, patch)
+        this._refreshQueued = true
+        Promise.resolve().then(() => this.flush(cb))
+      },
+      flush(cb) {
+        if (this._refreshQueued) { this._refreshQueued = false; refresh(this) }
+        if (cb) cb()
+      },
       _call(fn, args) { const f = cfg[fn]; if (typeof f === 'function') return f.apply(inst, args) },
     }
     for (const key of Object.keys(cfg)) {
@@ -312,20 +324,58 @@
     let focusInfo = null
     const af = document.activeElement
     if (af && (af.tagName === 'INPUT' || af.tagName === 'TEXTAREA') && inst._el.contains(af)) {
-      focusInfo = { field: af.dataset.field || null, value: af.value, selStart: af.selectionStart, selEnd: af.selectionEnd }
+      const controls = Array.from(inst._el.querySelectorAll('input,textarea'))
+      focusInfo = {
+        field: af.dataset.field || null, index: controls.indexOf(af), value: af.value,
+        selStart: af.selectionStart, selEnd: af.selectionEnd,
+      }
     }
-    const nodes = parse(html)
-    const frags = renderNodes(nodes, inst.data, inst)
-    inst._el.replaceChildren(...frags)
-    document.body.dataset.theme = inst.data.theme || 'light' // tabBar/弹窗深色变量依赖
-    // 恢复焦点
+    // 单个页面渲染失败时保留上一帧（或显示可返回的提示），绝不让路由停在一个空白容器里
+    try {
+      const nodes = parse(html)
+      const frags = renderNodes(nodes, inst.data, inst)
+      inst._el.replaceChildren(...frags)
+      inst._renderError = false
+      inst._renderCount = (inst._renderCount || 0) + 1
+      if (inst._el.parentNode) document.body.dataset.theme = inst.data.theme || 'light' // 只让当前显示的页面决定 tabBar/弹窗主题
+    } catch (e) {
+      inst._renderError = true
+      try { console.warn('[page] 渲染失败 ' + inst._route + '：' + e.message) } catch { }
+      if (!inst._el.childNodes.length) showRenderFallback(inst)
+      return
+    }
+    // 恢复焦点：优先按 data-field，其次按输入框在页面里的位置，避免多输入框页面跳焦点
     if (focusInfo) {
-      const el = inst._el.querySelector(focusInfo.field ? '[data-field="' + focusInfo.field + '"]' : 'input,textarea')
+      const controls = inst._el.querySelectorAll('input,textarea')
+      const el = focusInfo.field
+        ? inst._el.querySelector('[data-field="' + focusInfo.field + '"]')
+        : (controls[focusInfo.index] || controls[0])
       if (el) { el.focus(); try { el.setSelectionRange(focusInfo.selStart, focusInfo.selEnd) } catch { } }
     } else {
-      const af = inst._el.querySelector('[data-auto-focus="1"]')
-      if (af) af.focus()
+      const autoFocus = inst._el.querySelector('[data-auto-focus="1"]')
+      if (autoFocus) autoFocus.focus()
     }
+  }
+
+  // 渲染失败且页面还是空的：给出能退回上一页的提示，而不是留白屏
+  function showRenderFallback(inst) {
+    const box = document.createElement('div')
+    box.className = 'wx-render-error'
+    const title = document.createElement('div')
+    title.className = 'wx-render-error-title'
+    title.textContent = '页面没有加载出来'
+    const tip = document.createElement('div')
+    tip.className = 'wx-render-error-tip'
+    tip.textContent = '数据可能刚刚发生变化，返回上一页再试一次。'
+    const btn = document.createElement('button')
+    btn.className = 'wx-render-error-btn'
+    btn.textContent = '返回'
+    btn.onclick = () => {
+      if (window.history.length > 1) window.history.back()
+      else if (stack.length > 1) popEntry()
+    }
+    box.appendChild(title); box.appendChild(tip); box.appendChild(btn)
+    inst._el.replaceChildren(box)
   }
 
   // ---------- 路由 ----------
@@ -346,10 +396,13 @@
     })
     let entry
     if (mode === 'tab') {
+      // switchTab 语义：关闭所有非 tab 页面，只保留 tab 页实例
+      const tabRoutes = new Set(tabList().map(t => t.pagePath))
+      for (let i = stack.length - 1; i >= 0; i--) if (!tabRoutes.has(stack[i].route)) stack.splice(i, 1)
       entry = stack.find(e => e.route === route)
       if (!entry) { entry = { route, inst: createInstance(route, query) }; stack.push(entry) }
       else if (stack[stack.length - 1] !== entry) {
-        stack.splice(stack.indexOf(entry), 1); stack.push(entry) // 切 tab 清掉栈中非 tab 页
+        stack.splice(stack.indexOf(entry), 1); stack.push(entry)
       }
     } else {
       entry = { route, inst: createInstance(route, query) } // navigate 语义：总是新建实例
@@ -375,24 +428,36 @@
     el.style.paddingBottom = tabList().some(t => t.pagePath === entry.route) ? '60px' : '0'
     el.replaceChildren(entry.inst._el)
     el.scrollTop = entry.inst._elscroll || 0
-    refresh(entry.inst)
-    if (!entry._loaded) { entry._loaded = true; entry.inst.onLoad && entry.inst.onLoad(query) }
-    entry.inst.onShow && entry.inst.onShow()
+    // 生命周期顺序与真机一致：onLoad → onShow → 渲染。
+    // 先跑 onShow 再最终渲染一次，表单页才能在首帧就拿到科目等数据。
+    const first = !entry._loaded
+    if (first) {
+      entry._loaded = true
+      try { entry.inst.onLoad && entry.inst.onLoad(query) } catch (e) { console.warn('[page] onLoad 失败 ' + entry.route, e) }
+    }
+    const rendersBeforeShow = entry.inst._renderCount || 0
+    try { entry.inst.onShow && entry.inst.onShow() } catch (e) { console.warn('[page] onShow 失败 ' + entry.route, e) }
+    if (entry.inst._refreshQueued) entry.inst.flush()
+    else if ((entry.inst._renderCount || 0) === rendersBeforeShow) refresh(entry.inst)
     current = entry
     updateTabbar(entry.route)
-    history.pushState({ route: entry.route }, '', '#/' + entry.route)
+    try { history.pushState({ route: entry.route }, '', '#/' + entry.route) } catch (e) { }
   }
   function popEntry() {
     stack.pop()
     const next = stack[stack.length - 1]
     if (!next) { current = null; return }
     const prev = current
-    if (prev && prev.inst && prev.inst._el) prev.inst.onHide && prev.inst.onHide()
+    if (prev && prev.inst && prev.inst._el) {
+      try { prev.inst.onHide && prev.inst.onHide() } catch (e) { console.warn('[page] onHide 失败 ' + prev.route, e) }
+    }
     current = next
     const el = appEl()
     el.replaceChildren(next.inst._el)
-    refresh(next.inst)
-    next.inst.onShow && next.inst.onShow()
+    const rendersBeforeShow = next.inst._renderCount || 0
+    try { next.inst.onShow && next.inst.onShow() } catch (e) { console.warn('[page] onShow 失败 ' + next.route, e) }
+    if (next.inst._refreshQueued) next.inst.flush()
+    else if ((next.inst._renderCount || 0) === rendersBeforeShow) refresh(next.inst)
     updateTabbar(next.route)
   }
   window.addEventListener('popstate', () => {
@@ -444,7 +509,17 @@
     // tabBar 挂载
     if (tabbarEl() && tabList().length) updateTabbar('')
     // app 启动
-    if (app.onLaunch) { app.onLaunch.call({}) }
+    try { app.onLaunch && app.onLaunch.call(app) } catch (e) { console.warn('[app] onLaunch 失败', e) }
+    try { app.onShow && app.onShow.call(app) } catch (e) { console.warn('[app] onShow 失败', e) }
+    // WebView 从后台回到前台：真机会依次触发 app 与当前页面的 onShow
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        try { app.onHide && app.onHide.call(app) } catch (e) { }
+        return
+      }
+      try { app.onShow && app.onShow.call(app) } catch (e) { }
+      try { if (current && current.inst.onShow) current.inst.onShow() } catch (e) { }
+    })
     // 首路由
     const root = (mini.startRoute) || (app.pages && app.pages[0]) || 'pages/home/home'
     goto(root, 'tab')
