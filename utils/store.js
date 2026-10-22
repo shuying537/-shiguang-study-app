@@ -105,8 +105,8 @@ function validateRecord(r,original) {
  if((r.note||'').length>100)throw new Error('备注不能超过 100 字');
  if(r.startTime&&r.endTime&&r.endTime<r.startTime)throw new Error('结束时间不能早于开始时间；跨午夜请分两条记录');
 }
-function saveRecord(record) {
- const d=getData(),i=d.records.findIndex(r=>r.id===record.id),original=i>=0?d.records[i]:null;
+function prepareRecord(d,record) {
+ const i=d.records.findIndex(r=>r.id===record.id),original=i>=0?d.records[i]:null;
  if(record.id&&!original)throw new Error('这条记录已不存在');
  validateRecord(record,original);
  const active=d.subjects.some(s=>s.id===record.subjectId),retained=original&&original.subjectId===record.subjectId;
@@ -114,9 +114,24 @@ function saveRecord(record) {
  if(record.taskId&&!d.tasks.some(t=>t.id===record.taskId&&t.subjectId===record.subjectId))throw new Error('关联任务需属于所选科目');
  const s=recordSubject(d,Object.assign({},original,record)),task=d.tasks.find(t=>t.id===record.taskId);
  const r=Object.assign({},original,record,{id:record.id||uid('record'),duration:Number(record.duration),source:'manual',subjectName:s.name,subjectColor:s.color,taskName:task?task.title:(original&&original.subjectId===record.subjectId&&original.taskId===record.taskId?original.taskName||'':''),createdAt:original?original.createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()});
- if(i>=0)d.records[i]=r;else d.records.push(r);
- if(active)d.settings.lastSubjectId=r.subjectId;
+ return {record:r,index:i,active};
+}
+function saveRecord(record) {
+ const d=getData(),prepared=prepareRecord(d,record),r=prepared.record;
+ if(prepared.index>=0)d.records[prepared.index]=r;else d.records.push(r);
+ if(prepared.active)d.settings.lastSubjectId=r.subjectId;
  saveData(d);return r;
+}
+function saveRecords(records) {
+ if(!Array.isArray(records)||!records.length)throw new Error('请至少添加一个科目');
+ const d=getData(),prepared=records.map(record=>{
+  if(record.id)throw new Error('批量补录只能新建记录');
+  return prepareRecord(d,record);
+ });
+ prepared.forEach(item=>d.records.push(item.record));
+ const last=prepared[prepared.length-1];
+ if(last.active)d.settings.lastSubjectId=last.record.subjectId;
+ saveData(d);return prepared.map(item=>item.record);
 }
 function adjustTodayDuration(subjectId,delta) {
  const d=getData(),today=dateKey(),amount=Number(delta),now=new Date().toISOString(),before=clone(d.records);
@@ -366,4 +381,4 @@ function clearAll() {
  return saved;
 }
 function csv(d,days) {const rs=days?d.records.filter(r=>days.indexOf(r.date)>=0):d.records;const rows=[['学习日期','科目','时长（分钟）','关联任务','备注']];rs.forEach(r=>{const t=d.tasks.find(t=>t.id===r.taskId);rows.push([r.date,recordSubject(d,r).name,r.duration,t?t.title:r.taskName||'',r.note||''])});return '\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n')}
-module.exports={KEY,DRAFT_KEY,BACKUP_KEY,COLORS,dateKey,addDays,timeKey,timestamp,durationText,shortDuration,uid,getData,saveData,ensureData,backupInfo,restoreBackup,exportJson,importJson,subject,recordSubject,isQuickRecord,addSubject,updateSubject,deleteSubject,validateRecord,saveRecord,adjustTodayDuration,undoQuickDuration,deleteRecord,taskStatus,statusText,reminderCandidates,saveTask,importTasks,undoImport,lastImportInfo,takeDueReminders,toggleTask,restoreTask,abandonTask,postponeTask,deleteTask,weekDays,weekStartKey,monthDays,totalForDate,completedForDays,todayPlan,stats,goalView,saveGoal,deleteGoal,goalList,nearestGoal,weekSummary,saveReview,reviewList,reviewDue,needsOnboarding,completeOnboarding,dismissOnboarding,loadDemo,clearAll,csv}
+module.exports={KEY,DRAFT_KEY,BACKUP_KEY,COLORS,dateKey,addDays,timeKey,timestamp,durationText,shortDuration,uid,getData,saveData,ensureData,backupInfo,restoreBackup,exportJson,importJson,subject,recordSubject,isQuickRecord,addSubject,updateSubject,deleteSubject,validateRecord,saveRecord,saveRecords,adjustTodayDuration,undoQuickDuration,deleteRecord,taskStatus,statusText,reminderCandidates,saveTask,importTasks,undoImport,lastImportInfo,takeDueReminders,toggleTask,restoreTask,abandonTask,postponeTask,deleteTask,weekDays,weekStartKey,monthDays,totalForDate,completedForDays,todayPlan,stats,goalView,saveGoal,deleteGoal,goalList,nearestGoal,weekSummary,saveReview,reviewList,reviewDue,needsOnboarding,completeOnboarding,dismissOnboarding,loadDemo,clearAll,csv}

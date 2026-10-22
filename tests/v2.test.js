@@ -248,6 +248,23 @@ test('record form preserves unsaved input when returning from subject creation',
   assert.equal(form.data.duration,'45')
   assert.equal(form.data.subjects.length,2)
 })
+test('batch record save writes all subjects together and rejects invalid rows without partial saves',()=>{
+  const {store,page}=setup(),math=store.addSubject('数学'),english=store.addSubject('英语'),form=page('record')
+  form.setData({recordRows:[
+    {key:'math',subjectId:math.id,duration:'90'},
+    {key:'english',subjectId:english.id,duration:'45'}
+  ],date:'2026-10-15',note:'章节复习'})
+  form.save()
+  let saved=store.getData().records
+  assert.equal(saved.length,2)
+  assert.deepEqual(plain(saved.map(r=>[r.subjectId,r.duration,r.date,r.note])),[[math.id,90,'2026-10-15','章节复习'],[english.id,45,'2026-10-15','章节复习']])
+  const count=saved.length
+  assert.throws(()=>store.saveRecords([
+    {subjectId:math.id,date:'2026-10-15',duration:30},
+    {subjectId:english.id,date:'2026-10-15',duration:7}
+  ]),/时长/)
+  assert.equal(store.getData().records.length,count)
+})
 test('statistics and my page use the same average and completed count', () => {
   const {store,page}=setup(),t=task(store)
   record(store,{duration:210});store.toggleTask(t.id)

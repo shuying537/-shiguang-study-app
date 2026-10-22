@@ -15,6 +15,8 @@
   <view class="divider"></view>
   <view class="setting-row row between" bindtap="review"><view><view class="strong">每周复盘</view><view class="hint">回顾本周，定下下周只改的一件事</view></view><text class="chevron">›</text></view>
   <view class="divider"></view>
+  <view class="setting-row row between" bindtap="aiPlan"><view><view class="strong">AI 计划提示词</view><view class="hint">生成提示词，复制到你使用的大模型</view></view><text class="chevron">›</text></view>
+  <view class="divider"></view>
   <view class="setting-row row between" bindtap="onboarding"><view><view class="strong">三分钟上手</view><view class="hint">重新设置目标与科目</view></view><text class="chevron">›</text></view>
  </view>
  <view class="settings-section">

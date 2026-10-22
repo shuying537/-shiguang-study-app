@@ -6,14 +6,14 @@
   <view class="hint">定一个考试日期、选几个科目，之后每天只用记一笔。</view>
   <view class="row onboard-actions"><button class="primary" bindtap="startOnboarding">开始设置</button></view>
  </view>
+ <view wx:if="{{goal}}" class="card goal-card" bindtap="openGoals">
+  <view class="row between"><view class="goal-main"><view class="eyebrow">COUNTDOWN</view><view class="goal-title">{{goal.title}}</view></view><view class="goal-days {{goal.daysLeft<0?'muted':''}}">{{goal.daysText}}</view></view>
+  <view class="hint">{{goal.dateText}} · {{goal.subjectText}}<text wx:if="{{goal.weekMinutes}}"> · 本周 {{goal.weekText}}</text></view>
+ </view>
  <view class="hero">
   <view class="row between"><text class="hero-label">今日学习</text><text class="hero-link" bindtap="scrollTasks">今日安排 {{todayCompleted}} / {{todayTotal}} ↓</text></view>
   <view class="hero-total">{{todayText}}</view>
   <view class="hero-bottom row between"><text>本周累计 {{weekText}}</text><text class="hero-link" bindtap="showStats">本周反馈 ↗</text></view>
- </view>
- <view wx:if="{{goal}}" class="card goal-card" bindtap="openGoals">
-  <view class="row between"><view class="goal-main"><view class="eyebrow">COUNTDOWN</view><view class="goal-title">{{goal.title}}</view></view><view class="goal-days {{goal.daysLeft<0?'muted':''}}">{{goal.daysText}}</view></view>
-  <view class="hint">{{goal.dateText}} · {{goal.subjectText}}<text wx:if="{{goal.weekMinutes}}"> · 本周 {{goal.weekText}}</text></view>
  </view>
  <view wx:if="{{showNudge}}" class="note-box">今天还没记下学习时间，选一科开始吧。</view>
  <view class="section-head"><text>记录今日学习</text><text class="link" bindtap="manageSubjects">添加 / 管理科目 ›</text></view>

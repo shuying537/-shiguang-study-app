@@ -13,6 +13,7 @@ Page({
  subjects(){wx.navigateTo({url:'/pages/subjects/subjects'})},
  goals(){wx.navigateTo({url:'/pages/goals/goals'})},
  review(){wx.navigateTo({url:'/pages/review/review'})},
+ aiPlan(){wx.navigateTo({url:'/pages/ai-plan/ai-plan'})},
  onboarding(){wx.navigateTo({url:'/pages/onboarding/onboarding'})},
  imports(){wx.navigateTo({url:'/pages/import/import'})},
  togglePreferences(){this.setData({showPreferences:!this.data.showPreferences})},

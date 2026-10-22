@@ -12,7 +12,8 @@
     "pages/onboarding/onboarding",
     "pages/goals/goals",
     "pages/review/review",
-    "pages/history/history"
+    "pages/history/history",
+    "pages/ai-plan/ai-plan"
   ],
   "window": {
     "navigationBarTitleText": "拾光 · 学习记录",

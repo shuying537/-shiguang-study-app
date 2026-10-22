@@ -134,7 +134,112 @@ test('jsdom: 计划页点 + 打开任务表单不会空白，返回后计划页�
   w.wx.navigateTo({ url: '/pages/record/record' })
   await tick()
   assert.ok(q('.screen.form-page'), 'record form should render')
-  assert.equal(q('.title').textContent, '记下一段学习')
+  assert.equal(q('.title').textContent, '补录学习')
+})
+
+test('jsdom: 补录表单可以一次保存多个科目的学习时长', async (t) => {
+  const dom = new JSDOM('<div id="app"></div><div id="tabbar" hidden></div>', {
+    url: 'https://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
+  })
+  const w = dom.window
+  t.after(() => dom.window.close())
+  w.localStorage.setItem('study_tracker_data_v12', JSON.stringify({
+    schema: 3,
+    subjects: [
+      { id: 'other', name: '其他', color: '#A5A0B7', is_default: true },
+      { id: 'math', name: '数学', color: '#7061D8', is_default: false },
+      { id: 'english', name: '英语', color: '#E5A65B', is_default: false },
+    ],
+    archivedSubjects: [], tasks: [], records: [], imports: [], goals: [], reviews: [],
+    settings: { theme: 'light', lastSubjectId: 'other' }, revision: 1,
+  }))
+  w.eval(read('tools/runtime.js'))
+  w.eval(read('tools/runtime-web.js'))
+  w.eval(read('www/bundle.js'))
+  const appEl = w.document.getElementById('app')
+  const q = sel => appEl.querySelector(sel)
+  const tick = () => new Promise(r => setTimeout(r, 30))
+
+  w.wx.navigateTo({ url: '/pages/record/record' })
+  await tick()
+  assert.equal(appEl.querySelectorAll('.batch-row').length, 1)
+  q('.batch-subjects > .row .link').click()
+  await tick()
+  assert.equal(appEl.querySelectorAll('.batch-row').length, 2)
+  const subjectPicker = appEl.querySelector('.batch-row select')
+  subjectPicker.value = '1'
+  subjectPicker.dispatchEvent(new w.Event('change', { bubbles: true }))
+  await tick()
+  assert.ok(appEl.querySelector('.batch-row').textContent.includes('英语'), 'row subject picker updates the selected subject')
+  const durations = appEl.querySelectorAll('.batch-row input')
+  durations[0].value = '90'
+  durations[0].dispatchEvent(new w.Event('input', { bubbles: true }))
+  durations[1].value = '45'
+  durations[1].dispatchEvent(new w.Event('input', { bubbles: true }))
+  const note = q('textarea[data-field="note"]')
+  note.value = '复习章节'
+  note.dispatchEvent(new w.Event('input', { bubbles: true }))
+  await tick()
+  q('.footer-actions .primary').click()
+
+  const saved = JSON.parse(w.localStorage.getItem('study_tracker_data_v12'))
+  assert.deepEqual(saved.records.map(r => [r.subjectId, r.duration, r.note]), [
+    ['english', 90, '复习章节'], ['math', 45, '复习章节'],
+  ])
+})
+
+test('jsdom: AI 计划提示词在本机生成、复制并通过计划导入流程保存', async (t) => {
+  const dom = new JSDOM('<div id="app"></div><div id="tabbar" hidden></div>', {
+    url: 'https://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
+  })
+  const w = dom.window
+  t.after(() => dom.window.close())
+  let copied = ''
+  Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async value => { copied = value } } })
+  const requests = []
+  w.fetch = async (...args) => { requests.push(args); throw new Error('unexpected network request') }
+  w.eval(read('tools/runtime.js'))
+  w.eval(read('tools/runtime-web.js'))
+  w.eval(read('www/bundle.js'))
+  const appEl = w.document.getElementById('app')
+  const q = sel => appEl.querySelector(sel)
+  const tick = () => new Promise(r => setTimeout(r, 30))
+
+  w.wx.navigateTo({ url: '/pages/ai-plan/ai-plan' })
+  await tick()
+  const title = q('input[data-field="title"]')
+  title.value = '阶段考试'
+  title.dispatchEvent(new w.Event('input', { bubbles: true }))
+  await tick()
+  q('.generate-button').click()
+  await tick()
+
+  const prompt = q('.prompt-text').textContent
+  assert.match(prompt, /目标：阶段考试/)
+  assert.match(prompt, /只输出任务行/)
+  assert.equal(requests.length, 0, 'prompt generation stays on-device')
+  q('.copy-button').click()
+  await tick()
+  assert.equal(copied, prompt)
+
+  const plannedDate = new Date()
+  plannedDate.setDate(plannedDate.getDate() + 7)
+  const pad = n => String(n).padStart(2, '0')
+  const day = `${plannedDate.getFullYear()}-${pad(plannedDate.getMonth() + 1)}-${pad(plannedDate.getDate())}`
+  q('.import-button').click()
+  await tick()
+  const area = q('.import-area')
+  area.value = `复习基础知识 [其他] ${day} 20:00`
+  area.dispatchEvent(new w.Event('input', { bubbles: true }))
+  await tick()
+  q('.parse-btn').click()
+  await tick()
+  assert.equal(q('.section-head').textContent.includes('可导入 1'), true)
+  q('.preview-section .primary').click()
+  const saved = JSON.parse(w.localStorage.getItem('study_tracker_data_v12'))
+  assert.equal(saved.tasks.length, 1)
+  assert.equal(saved.tasks[0].title, '复习基础知识')
+  assert.equal(requests.length, 0, 'importing the pasted draft makes no network request')
 })
 
 // 导入页全链路：粘贴 → 解析预览 → 确认导入（缺少的科目自动创建，无效行跳过）
@@ -279,6 +384,7 @@ test('jsdom: 三分钟上手生成目标和科目，首页出现倒计时', asyn
   assert.ok(saved.subjects.some(s => s.name === '数学'))
   assert.ok(q('.screen.home-page'), 'back on home')
   assert.ok(q('.goal-card'), 'goal countdown card on home')
+  assert.ok(q('.goal-card').compareDocumentPosition(q('.hero')) & w.Node.DOCUMENT_POSITION_FOLLOWING, 'goal countdown precedes today study time')
   assert.ok(!q('.onboard-card'), 'first-run card gone')
 })
 

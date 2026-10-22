@@ -1,0 +1,21 @@
+<view class="screen {{theme}} ai-plan-page">
+ <view class="eyebrow">PLAN WITH YOUR AI</view>
+ <view class="title">准备学习计划</view>
+ <view class="subtitle">填写目标后生成提示词，再到你使用的大模型中生成计划。</view>
+ <view class="card form-card">
+  <view wx:if="{{goals.length}}" class="field"><view class="field-label">使用已有目标</view><picker mode="selector" range="{{goals}}" range-key="title" value="{{goalIndex}}" bindchange="goalChange"><view class="picker-box row between"><text>{{goalId?goals[goalIndex].title:'自定义目标'}}</text><text class="chevron">⌄</text></view></picker></view>
+  <view class="field"><view class="field-label">目标名称</view><input class="input" maxlength="30" placeholder="例如：12 月期末考试" value="{{title}}" data-field="title" bindinput="input"/></view>
+  <view class="field"><view class="field-label">目标日期</view><picker mode="date" value="{{targetDate}}" start="{{today}}" bindchange="dateChange"><view class="picker-box row between"><text>{{targetDate||'选择日期'}}</text><text class="chevron">⌄</text></view></picker></view>
+  <view class="field"><view class="field-label">安排科目</view><view class="chips"><text wx:for="{{subjects}}" wx:key="id" class="chip {{item.selected?'active':''}}" data-id="{{item.id}}" bindtap="toggleSubject">{{item.name}}</text></view></view>
+  <view class="field"><view class="field-label">每天可学习 <text class="small muted">· 分钟</text></view><input class="input" type="number" maxlength="3" value="{{dailyMinutes}}" data-field="dailyMinutes" bindinput="input"/><view class="hint">按每天实际能安排的时间填写。</view></view>
+  <view class="field"><view class="field-label">目前学习情况 <text class="small muted">· 选填</text></view><textarea class="textarea situation-input" maxlength="1000" placeholder="例如：已经学完哪些内容、哪些部分较薄弱、最近的进度" value="{{situation}}" data-field="situation" bindinput="input"></textarea></view>
+ </view>
+ <view class="hint privacy-note">提示词在本机生成，app 不会把这些信息发送到后端。你复制到的大模型会按其自身服务规则处理内容，请自行选择模型并避免填写敏感信息。</view>
+ <button class="primary generate-button" bindtap="generate">生成提示词</button>
+ <view wx:if="{{promptReady}}" class="prompt-section">
+  <view class="section-head"><text>复制提示词到你使用的大模型</text><text class="small muted">可长按选择文本</text></view>
+  <view class="card prompt-card"><text class="prompt-text" selectable="true">{{prompt}}</text></view>
+  <button class="primary copy-button" bindtap="copyPrompt">复制提示词</button>
+  <button class="plain-btn import-button" bindtap="openImport">生成完成后，粘贴计划并导入</button>
+ </view>
+</view>

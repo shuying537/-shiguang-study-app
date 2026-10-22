@@ -210,11 +210,12 @@
     const kids = renderNodes(node.children || [], sc, page)
     for (const c of kids) display.appendChild(c)
     const attrs = node.attrs || {}
+    const dataset = Object.fromEntries(Object.keys(attrs).filter(key => key.startsWith('data-')).map(key => [key.slice(5), interpolateAttr(attrs[key], sc)]))
     const mode = attrs.mode || 'selector'
     const bindChange = Object.entries(attrs).find(([k]) => k.startsWith('bindchange') || k.startsWith('catchchange'))
     const onchange = (value) => {
       const fn = page && bindChange && typeof page[bindChange[1]] === 'function' ? page[bindChange[1]] : null
-      if (fn) fn.call(page, { currentTarget: { dataset: {} }, detail: { value } })
+      if (fn) fn.call(page, { currentTarget: { dataset }, detail: { value } })
     }
     if (mode === 'selector' && attrs.range) {
       const items = valueOf(attrs.range, sc) || []
