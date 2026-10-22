@@ -8,7 +8,7 @@ test('all registered pages have balanced templates and existing event handlers',
   const template=fs.readFileSync(path.join(root,route+'.wxml'),'utf8')
   parse(template)
   let config
-  vm.runInNewContext(fs.readFileSync(path.join(root,route+'.js'),'utf8'),{Page(value){config=value},require(){return {}}})
+  vm.runInNewContext(fs.readFileSync(path.join(root,route+'.js'),'utf8'),{Page(value){config=value},require(spec){return spec.endsWith('/plan-import-page')?require('../utils/plan-import-page'):{}}})
   const bindings=[...template.matchAll(/\b(?:bind|catch)(?::)?[a-z]+="(\w+)"/g)].map(match=>match[1])
   for(const binding of bindings)assert.equal(typeof config[binding],'function',route+': missing '+binding)
   const style=fs.readFileSync(path.join(root,route+'.wxss'),'utf8')

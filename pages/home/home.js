@@ -29,7 +29,7 @@ Page({
         subjects, tasks: this.data.expanded?tasks:tasks.slice(0,3),
         todayTotal: plan.total, todayCompleted: plan.completed,
         overdueCount: plan.overdue.length, carriedCount: plan.carried.length,
-        noCustomSubjects: d.subjects.length===1,
+        noCustomSubjects: !d.subjects.some(s=>!s.is_default),
         goal: store.nearestGoal(d,today),
         reviewDue: store.reviewDue(d,today),
         showOnboarding: store.needsOnboarding()

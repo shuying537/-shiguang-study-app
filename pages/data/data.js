@@ -22,10 +22,10 @@ Page({
   else{const d=new Date(anchor.slice(0,7)+'-01T12:00:00');d.setMonth(d.getMonth()+n);anchor=store.dateKey(d)}
   this.setData({anchor});this.refresh()
  },
- showAll(){this.setData({showDetails:!this.data.showDetails,selectedDate:'',detailRecords:this.data.records})},
+ showAll(){this.setData({showDetails:!this.data.showDetails,selectedDate:'',detailRecords:this.data.records},()=>this.draw())},
  trendTap(e){
   const query=wx.createSelectorQuery().in(this)
-  query.select('#trend').boundingClientRect(rect=>{if(!rect)return;const x=e.detail.x-rect.left,i=Math.max(0,Math.min(this.data.daily.length-1,Math.round((x-34)/(rect.width-46)*(this.data.daily.length-1)))),date=this.data.daily[i].date;this.setData({selectedDate:date,showDetails:true,detailRecords:this.data.records.filter(r=>r.date===date)})}).exec()
+  query.select('#trend').boundingClientRect(rect=>{if(!rect)return;const x=e.detail.x-rect.left,i=Math.max(0,Math.min(this.data.daily.length-1,Math.round((x-34)/(rect.width-46)*(this.data.daily.length-1)))),date=this.data.daily[i].date;this.setData({selectedDate:date,showDetails:true,detailRecords:this.data.records.filter(r=>r.date===date)},()=>this.draw())}).exec()
  },
  edit(e){wx.navigateTo({url:'/pages/record/record?id='+e.currentTarget.dataset.id})},
  taskDetail(e){wx.navigateTo({url:'/pages/task/task?id='+e.currentTarget.dataset.id})},

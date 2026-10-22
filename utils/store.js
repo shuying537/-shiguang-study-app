@@ -18,7 +18,7 @@ function getData() {
  if(!Array.isArray(d.subjects)||!Array.isArray(d.tasks)||!Array.isArray(d.records))throw new Error('本地数据格式异常，请先导出备份');
  d.imports=d.imports||[];d.archivedSubjects=d.archivedSubjects||[];d.settings=Object.assign({},initial().settings,d.settings);d.revision=d.revision||0;
  if(!Array.isArray(d.goals))d.goals=[];if(!Array.isArray(d.reviews))d.reviews=[];
- if(!d.subjects.some(s=>s.id==='other'))d.subjects.push(initial().subjects[0]);
+ if(!d.subjects.length)d.subjects.push(initial().subjects[0]);
  d.tasks.forEach(t=>{
   if(t.plannedDate===undefined)t.plannedDate=validDate((t.deadline||'').slice(0,10))?t.deadline.slice(0,10):'';
   if(t.estimatedMinutes===undefined)t.estimatedMinutes=null;
@@ -87,7 +87,8 @@ function updateSubject(id,name) {
 }
 function deleteSubject(id) {
  const d=getData(),s=d.subjects.find(item=>item.id===id);
- if(!s||s.is_default||s.id==='other')throw new Error('其他科目为系统保留，不可删除');
+ if(!s)throw new Error('科目不存在');
+ if(d.subjects.length<=1)throw new Error('至少保留一个科目');
  const tasks=d.tasks.filter(t=>t.subjectId===id),ids=tasks.map(t=>t.id);
  d.archivedSubjects.push(Object.assign({},s,{deleted:true}));
  d.records.forEach(r=>{
@@ -95,7 +96,8 @@ function deleteSubject(id) {
   if(ids.indexOf(r.taskId)>=0){const t=tasks.find(item=>item.id===r.taskId);r.taskName=t.title;r.taskId=null}
  });
  d.tasks=d.tasks.filter(t=>t.subjectId!==id);d.subjects=d.subjects.filter(item=>item.id!==id);
- if(d.settings.lastSubjectId===id)d.settings.lastSubjectId='other';
+ d.goals.forEach(g=>{if(Array.isArray(g.subjectIds))g.subjectIds=g.subjectIds.filter(item=>item!==id)});
+ if(d.settings.lastSubjectId===id)d.settings.lastSubjectId=d.subjects[0].id;
  saveData(d);
 }
 function validateRecord(r,original) {
@@ -201,6 +203,12 @@ function importTasks(items, options) {
   try{
    const title=String(item&&item.title||'').replace(/\s+/g,' ').trim()
    if(!title||title.length>60){skipped.push({title,reason:'任务名称需为 1–60 个字'});return}
+   const deadline=String(item&&item.deadline||'')
+   if(!/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d$/.test(deadline)||!validDate(deadline.slice(0,10))){skipped.push({title,reason:'截止时间格式不正确'});return}
+   const estimatedMinutes=item.estimatedMinutes==null||item.estimatedMinutes===''?null:Number(item.estimatedMinutes)
+   if(estimatedMinutes!==null&&(!Number.isInteger(estimatedMinutes)||estimatedMinutes<5||estimatedMinutes>1440||estimatedMinutes%5!==0)){
+    skipped.push({title,reason:'预计时长需为 5–1440 分钟，且为 5 的倍数'});return
+   }
    let target=d.subjects.find(s=>s.id===item.subjectId)||d.subjects.find(s=>s.name===String(item.subjectName||'').trim())
    if(!target&&createSubjects){
     const name=String(item.subjectName||'').trim()
@@ -211,15 +219,13 @@ function importTasks(items, options) {
    }
    if(!target)target=d.subjects.find(s=>s.id==='other')||d.subjects[0]
    if(!target){skipped.push({title,reason:'没有可用科目'});return}
-   const deadline=String(item&&item.deadline||'')
-   if(!/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d$/.test(deadline)||!validDate(deadline.slice(0,10))){skipped.push({title,reason:'截止时间格式不正确'});return}
    let plannedDate=validDate(item.plannedDate)?item.plannedDate:deadline.slice(0,10)
    if(plannedDate>deadline.slice(0,10))plannedDate=deadline.slice(0,10)
    const key=keyOf(title,target.id,deadline)
    if(seen[key]){skipped.push({title,reason:'与已有任务重复'});return}
    seen[key]=true
    const now=new Date().toISOString()
-   const task={id:uid('task'),title,subjectId:target.id,plannedDate,deadline,completed:false,abandoned:false,reminder:false,reminderStatus:'off',source:'import',note:'',estimatedMinutes:null,needsFill:false,createdAt:now,updatedAt:now}
+   const task={id:uid('task'),title,subjectId:target.id,plannedDate,deadline,completed:false,abandoned:false,reminder:false,reminderStatus:'off',source:'import',note:'',estimatedMinutes,needsFill:false,createdAt:now,updatedAt:now}
    d.tasks.push(task);added.push(task)
   }catch(e){skipped.push({title:item&&item.title||'',reason:e.message})}
  })
@@ -250,7 +256,7 @@ function undoImport() {
  createdIds.forEach(id=>{
   if(d.tasks.some(t=>t.subjectId===id)||d.records.some(r=>r.subjectId===id))return;
   d.subjects=d.subjects.filter(s=>s.id!==id);
-  if(d.settings.lastSubjectId===id)d.settings.lastSubjectId='other';
+  if(d.settings.lastSubjectId===id)d.settings.lastSubjectId=d.subjects[0]?d.subjects[0].id:'';
  });
  last.undone=true;last.undoneAt=new Date().toISOString();
  saveData(d);

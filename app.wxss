@@ -1,4 +1,28 @@
 page{background:#f7f7fc;color:#282438;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:28rpx}
+/* 普通导入与 AI 计划共用的预览和编辑样式 */
+.import-area{width:100%;height:380rpx;padding:24rpx;background:var(--bg);border:2rpx solid var(--line);border-radius:20rpx;line-height:1.7;margin-bottom:20rpx}
+.parse-row{gap:20rpx}
+.screen .parse-btn{flex:0 0 auto;margin:0;padding:0 34rpx;line-height:72rpx;font-size:26rpx;border-radius:16rpx}
+.preview-section{margin-top:28rpx}
+.screen .preview-note{margin:0 0 10rpx}
+.screen .preview-card{padding:10rpx 28rpx}
+.preview-row{padding:22rpx 0;border-bottom:1rpx solid var(--line)}
+.preview-row:last-child{border-bottom:0}
+.preview-title{flex:1;min-width:0;margin-right:16rpx;overflow-wrap:anywhere;font-size:27rpx;font-weight:600}
+.row-tools{gap:28rpx;flex-shrink:0;justify-content:flex-end;margin-top:12rpx}
+.preview-edit{padding:6rpx 0}
+.edit-input{width:100%;margin-bottom:12rpx}
+.edit-line{display:flex;gap:12rpx;margin-bottom:12rpx}
+.edit-line>picker,.edit-line>.wx-picker-wrap{flex:1;min-width:0}
+.edit-duration{display:flex;gap:16rpx;align-items:center;margin:12rpx 0}
+.minutes-input{flex:1;min-width:0}
+.edit-line .picker-box{flex:1;min-width:0;min-height:72rpx;padding:16rpx;font-size:24rpx}
+.edit-line .time-box{flex:0 0 140rpx;text-align:center}
+.edit-actions{justify-content:flex-end;gap:28rpx}
+.badge.success{color:#49977A;background:#EAF7F1}
+.badge.warning{color:#B98235;background:#FFF4DF}
+.badge.muted{color:var(--muted);background:var(--bg)}
+.badge.danger{color:#D66A6A;background:#FFF0F0}
 view,text,button,input,textarea{box-sizing:border-box}button{font-size:28rpx;margin:0;border-radius:20rpx}button::after{border:0}button[disabled]{opacity:.45}button:active{opacity:.8}
 .screen{--bg:#f7f7fc;--card:#fff;--ink:#282438;--muted:#9995ac;--line:#eeedf5;--soft:#f2f0fc;--accent:#7061d8;background:var(--bg);color:var(--ink);min-height:100vh;padding:36rpx 32rpx 80rpx}
 .screen.dark{--bg:#191823;--card:#252433;--ink:#edeaf8;--muted:#aaa5bc;--line:#373444;--soft:#323046;--accent:#ad9aff}

@@ -3,7 +3,7 @@
 .subject-chip.selected{background:var(--soft);border-color:var(--accent);color:var(--accent);font-weight:600}
 .goal-row{padding:26rpx}
 .goal-main{flex:1;min-width:0;margin-right:20rpx}
-.goal-title{font-size:30rpx;font-weight:600;margin-bottom:8rpx}
-.goal-days{font-size:34rpx;font-weight:700;color:var(--accent);flex-shrink:0}
+.goal-title{font-size:34rpx;font-weight:600;margin-bottom:8rpx}
+.goal-days{font-size:44rpx;font-weight:700;color:var(--accent);flex-shrink:0}
 .goal-days.muted{color:var(--muted)}
 .goal-actions{justify-content:flex-end;gap:28rpx;margin-top:16rpx}

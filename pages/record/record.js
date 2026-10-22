@@ -20,7 +20,7 @@ Page({
     this.updateTasks();return
    }
    const draft=!edit&&!this.queryParams.subjectId&&!this.queryParams.taskId?wx.getStorageSync(store.DRAFT_KEY):null
-   const requested=edit?edit.subjectId:this.queryParams.subjectId||(draft&&draft.subjectId)||d.settings.lastSubjectId||'other'
+   const requested=edit?edit.subjectId:this.queryParams.subjectId||(draft&&draft.subjectId)||d.settings.lastSubjectId||(d.subjects[0]&&d.subjects[0].id)||'other'
    const index=subjects.findIndex(s=>s.id===requested),subjectIndex=Math.max(0,index),subjectId=subjects[subjectIndex].id
    const draftRows=!edit&&Array.isArray(draft&&draft.rows)?draft.rows.filter(row=>row&&subjects.some(s=>s.id===row.subjectId)):[]
    const recordRows=this.rowsWithOptions(draftRows.length?draftRows:[{key:'record-1',subjectId,duration:!edit&&draft?draft.duration||'':''}],subjects)

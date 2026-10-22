@@ -9,6 +9,7 @@ import { createRequire } from 'node:module'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const { css } = createRequire(import.meta.url)('./tools/runtime.js') // 复用 rpx→vw / page→body 转换
+const { scopeCss } = createRequire(import.meta.url)('./tools/css-scope.js') // 页面样式按路由隔离，避免跨页同名类互相覆盖
 
 const appJson = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8'))
 const pages = appJson.pages
@@ -27,7 +28,7 @@ for (const file of readdirSync(join(root, 'utils'))) {
 const templates = {}
 for (const page of pages) templates[page] = readFileSync(join(root, page + '.wxml'), 'utf8')
 
-// ---------- 样式：基础 + app.wxss + 各页 wxss ----------
+// ---------- 样式：基础 + app.wxss + 各页 wxss（按 data-route 隔离） ----------
 const baseCss = `/* 网页运行时基础样式（build-web.mjs 生成） */
 html,body{margin:0;padding:0;height:100%;box-sizing:border-box}
 *,*::before,*::after{box-sizing:border-box}
@@ -81,7 +82,7 @@ input.wx-switch:checked::before{left:22px}
 .wx-picker-native-select,.wx-picker-native-input{position:absolute;inset:0;width:100%;height:100%;opacity:.001;border:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:pointer}
 `
 let style = baseCss + css(readFileSync(join(root, 'app.wxss'), 'utf8')) + '\n'
-for (const page of pages) style += css(readFileSync(join(root, page + '.wxss'), 'utf8')) + '\n'
+for (const page of pages) style += css(scopeCss(readFileSync(join(root, page + '.wxss'), 'utf8'), page)) + '\n'
 
 // ---------- bundle.js ----------
 const moduleDefs = [...modules.entries()]

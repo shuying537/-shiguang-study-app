@@ -49,7 +49,16 @@
     btns.appendChild(cancelBtn); btns.appendChild(okBtn)
     box.appendChild(title); box.appendChild(content); box.appendChild(btns)
     overlay.appendChild(box)
-    const done = (confirm) => { overlay.remove(); if (confirm) { o.success && o.success({ confirm: true }) } else { o.cancel && o.cancel() } }
+    let closed = false
+    const done = (confirm) => {
+      if (closed) return
+      closed = true; overlay.remove()
+      o.success && o.success({ confirm, cancel: !confirm })
+      if (!confirm) o.cancel && o.cancel()
+      o.complete && o.complete({ confirm, cancel: !confirm })
+    }
+    overlay._dismiss = () => done(false)
+    if (o.showCancel === false) cancelBtn.hidden = true
     cancelBtn.onclick = () => done(false)
     okBtn.onclick = () => done(true)
     document.body.appendChild(overlay)
@@ -87,9 +96,7 @@
     switchTab(o) { goto(o.url.replace(/^\//, ''), 'tab') },
     redirectTo(o) { goto(o.url.replace(/^\//, ''), 'redirect') },
     navigateBack(o) {
-      if (window.history.length > 1) window.history.back()
-      else { popEntry(); }
-      setTimeout(() => { /* 返回动画后因历史栈清空而触发 popstate */ }, 0)
+      requestBack(o && o.delta)
       o && o.success && o.success()
     },
     pageScrollTo(o) {
@@ -371,23 +378,63 @@
     const btn = document.createElement('button')
     btn.className = 'wx-render-error-btn'
     btn.textContent = '返回'
-    btn.onclick = () => {
-      if (window.history.length > 1) window.history.back()
-      else if (stack.length > 1) popEntry()
-    }
+    btn.onclick = () => requestBack()
     box.appendChild(title); box.appendChild(tip); box.appendChild(btn)
     inst._el.replaceChildren(box)
   }
 
   // ---------- 路由 ----------
   const stack = [] // {route, inst}
+  const tabCache = new Map()
+  // Browser history stores snapshots of the same page stack used by Android Back.
+  // Closed tab/detail paths are invalidated so browser Forward cannot reopen them.
+  const historyEntries = []
+  const historySession = String(Date.now()) + '-' + Math.random().toString(36).slice(2)
+  let historyIndex = 0, historyPending = false, homeEntry = null
   let current = null
   const appEl = () => document.getElementById('app')
   const tabbarEl = () => document.getElementById('tabbar')
 
   function entryRouteOf(url) { return url.replace(/^\//, '').split('?')[0] }
 
+  function writeHistory(replace) {
+    if (!replace) {
+      historyIndex++
+      historyEntries.splice(historyIndex)
+    }
+    historyEntries[historyIndex] = { entries: stack.slice(), valid: true }
+    const state = { studySession: historySession, index: historyIndex }
+    history[replace ? 'replaceState' : 'pushState'](state, '', '#/' + current.route)
+  }
+
+  function dismissModal() {
+    const overlays = document.querySelectorAll('.wx-modal-mask')
+    const overlay = overlays[overlays.length - 1]
+    if (!overlay) return false
+    overlay._dismiss()
+    return true
+  }
+
+  function requestBack(delta) {
+    if (dismissModal() || historyPending) return true
+    if (stack.length <= 1) return false
+    const count = Math.max(1, Math.floor(Number(delta) || 1))
+    const targetLength = Math.max(1, stack.length - count)
+    const target = stack[targetLength - 1]
+    for (let i = historyIndex - 1; i >= 0; i--) {
+      const snapshot = historyEntries[i]
+      if (snapshot.valid && snapshot.entries.length === targetLength && snapshot.entries[targetLength - 1] === target) {
+        historyPending = true
+        history.go(i - historyIndex)
+        return true
+      }
+    }
+    return false
+  }
+  window.__studyBack = () => requestBack()
+
   function goto(url, mode) {
+    if (historyPending) return
     const route = entryRouteOf(url)
     if (!pagesRepo[route]) { console.warn('unknown route', route); return }
     let query = {}
@@ -397,22 +444,35 @@
     })
     let entry
     if (mode === 'tab') {
-      // switchTab 语义：关闭所有非 tab 页面，只保留 tab 页实例
-      const tabRoutes = new Set(tabList().map(t => t.pagePath))
-      for (let i = stack.length - 1; i >= 0; i--) if (!tabRoutes.has(stack[i].route)) stack.splice(i, 1)
-      entry = stack.find(e => e.route === route)
-      if (!entry) { entry = { route, inst: createInstance(route, query) }; stack.push(entry) }
-      else if (stack[stack.length - 1] !== entry) {
-        stack.splice(stack.indexOf(entry), 1); stack.push(entry)
+      entry = tabCache.get(route)
+      if (!entry) { entry = { route, inst: createInstance(route, query) }; tabCache.set(route, entry) }
+      if (!homeEntry) {
+        homeEntry = entry; stack.push(entry)
+        showEntry(entry, query); writeHistory(true)
+        return
       }
+      if (current === entry && stack[stack.length - 1] === entry) return
+      for (let i = 1; i < historyEntries.length; i++) {
+        historyEntries[i].valid = false; historyEntries[i].entries = []
+      }
+      stack.splice(0, stack.length, homeEntry)
+      if (entry !== homeEntry) stack.push(entry)
+      showEntry(entry, query)
+      if (entry === homeEntry) {
+        if (historyIndex) { historyPending = true; history.go(-historyIndex) }
+        else writeHistory(true)
+      } else writeHistory(false)
+      return
     } else {
       entry = { route, inst: createInstance(route, query) } // navigate 语义：总是新建实例
-      if (mode === 'redirect' && stack.length > 1) stack.splice(stack.length - 2, 1)
+      if (mode === 'redirect') stack.pop()
       stack.push(entry)
     }
     showEntry(entry, query)
+    if (mode === 'redirect') historyEntries.slice(historyIndex + 1).forEach(snapshot => { snapshot.valid = false; snapshot.entries = [] })
+    writeHistory(mode === 'redirect')
   }
-  function showEntry(entry, query, wasTab) {
+  function showEntry(entry, query) {
     const prev = current
     if (prev === entry) return
     if (!entry.inst._el) {
@@ -424,7 +484,7 @@
     const el = appEl()
     if (prev && prev.inst && prev.inst._el) {
       prev.inst._elscroll = el.scrollTop
-      prev.inst.onHide && prev.inst.onHide()
+      try { prev.inst.onHide && prev.inst.onHide() } catch (e) { console.warn('[page] onHide 失败 ' + prev.route, e) }
     }
     el.style.paddingBottom = tabList().some(t => t.pagePath === entry.route) ? '60px' : '0'
     el.replaceChildren(entry.inst._el)
@@ -442,27 +502,27 @@
     else if ((entry.inst._renderCount || 0) === rendersBeforeShow) refresh(entry.inst)
     current = entry
     updateTabbar(entry.route)
-    try { history.pushState({ route: entry.route }, '', '#/' + entry.route) } catch (e) { }
   }
-  function popEntry() {
-    stack.pop()
-    const next = stack[stack.length - 1]
-    if (!next) { current = null; return }
-    const prev = current
-    if (prev && prev.inst && prev.inst._el) {
-      try { prev.inst.onHide && prev.inst.onHide() } catch (e) { console.warn('[page] onHide 失败 ' + prev.route, e) }
+  window.addEventListener('popstate', event => {
+    const state = event.state
+    if (!state || state.studySession !== historySession) return
+    const index = state.index, snapshot = historyEntries[index]
+    if (!snapshot) return
+    if (!historyPending && dismissModal()) {
+      historyPending = true; history.go(historyIndex - index)
+      return
     }
-    current = next
-    const el = appEl()
-    el.replaceChildren(next.inst._el)
-    const rendersBeforeShow = next.inst._renderCount || 0
-    try { next.inst.onShow && next.inst.onShow() } catch (e) { console.warn('[page] onShow 失败 ' + next.route, e) }
-    if (next.inst._refreshQueued) next.inst.flush()
-    else if ((next.inst._renderCount || 0) === rendersBeforeShow) refresh(next.inst)
-    updateTabbar(next.route)
-  }
-  window.addEventListener('popstate', () => {
-    if (stack.length > 1) popEntry() // 安卓返回键：历史回退一层
+    if (!snapshot.valid) {
+      const step = index > historyIndex ? 1 : -1
+      let next = index
+      while (historyEntries[next] && !historyEntries[next].valid) next += step
+      if (!historyEntries[next]) next = historyIndex
+      historyPending = true; history.go(next - index)
+      return
+    }
+    historyPending = false; historyIndex = index
+    stack.splice(0, stack.length, ...snapshot.entries)
+    showEntry(stack[stack.length - 1])
   })
 
   // ---------- tabBar ----------

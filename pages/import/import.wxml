@@ -1,8 +1,8 @@
 <view class="screen {{theme}} form-page import-page">
  <view class="eyebrow">BRING YOUR PLAN IN</view><view class="title">导入学习计划。</view><view class="subtitle">每行一个任务，解析后先预览；确认之前不会写入。</view>
- <view class="note-box">任务名后面可以写科目和截止时间，顺序不限：<br/>完成高数第一章 [高等数学] [2026-10-20 18:00]<br/>- 背 30 个单词 【英语】 10月21日 20:00<br/>复习错题 @数学 明天 晚上8点<br/>没写科目归入「其他」，没写时间默认 7 天后。</view>
+ <view class="note-box">任务名后面可以写科目和截止时间，顺序不限：<br/>完成高数第一章 [高等数学] [2026-10-20 18:00]<br/>- 背 30 个单词 【英语】 10月21日 20:00<br/>复习错题 @数学 明天 晚上8点<br/>没写科目归入默认科目，没写时间默认 7 天后。</view>
  <view class="card">
-  <textarea class="import-area" data-field="text" maxlength="5000" placeholder="把计划粘贴到这里，一行一个任务" value="{{text}}" bindinput="input"></textarea>
+  <textarea class="import-area" data-field="text" maxlength="60000" placeholder="把计划粘贴到这里，一行一个任务；可在行尾写 预计30分钟" value="{{text}}" bindinput="planInput"></textarea>
   <view class="parse-row row between"><text class="hint">{{lineCount ? lineCount + ' 行内容' : '一行一个任务'}}</text><button class="primary parse-btn" bindtap="parse">解析预览</button></view>
  </view>
  <view wx:if="{{showPreview}}" class="preview-section">
@@ -19,20 +19,22 @@
       <picker mode="date" value="{{item.editDate}}" bindchange="editDate"><view class="picker-box">{{item.editDate}}</view></picker>
       <picker mode="time" value="{{item.editTime}}" bindchange="editTime"><view class="picker-box time-box">{{item.editTime}}</view></picker>
      </view>
+     <view class="edit-duration"><text class="hint">预计时长（分钟，选填）</text><input class="input minutes-input" type="number" value="{{item.editMinutes}}" bindinput="editMinutes" placeholder="例如 30"/></view>
      <view class="row edit-actions"><button size="mini" class="plain-btn" bindtap="cancelEdit">取消</button><button size="mini" class="plain-btn" bindtap="saveEdit">完成</button></view>
     </view>
     <view wx:else>
-     <view class="row between"><view class="preview-title">{{item.title || '（没有任务名）'}}</view><view class="row row-tools"><text class="link" data-index="{{index}}" bindtap="startEdit">编辑</text><text class="badge {{item.tone}}">{{item.badge}}</text></view></view>
+     <view class="row between"><view class="preview-title">{{item.title || '（没有任务名）'}}</view><text class="badge {{item.tone}}">{{item.badge}}</text></view>
      <view wx:if="{{item.metaText}}" class="hint">{{item.metaText}}</view>
      <view wx:if="{{item.reason}}" class="hint {{item.tone === 'danger' ? 'danger-text' : ''}}">{{item.reason}}</view>
+     <view class="row row-tools"><text class="link edit-row" data-index="{{index}}" bindtap="startEdit">编辑</text><text class="link exclude-row" data-index="{{index}}" bindtap="toggleExclude">{{item.excluded?'恢复':'排除'}}</text></view>
     </view>
    </view>
    <view wx:if="{{!rows.length}}" class="hint">没有解析到任务。</view>
   </view>
   <view class="option-row row between">
-   <view><view class="strong">自动创建缺少的科目</view><view class="hint">关闭后，这些任务会归入「其他」</view></view>
+   <view><view class="strong">自动创建缺少的科目</view><view class="hint">关闭后，这些任务会归入默认科目</view></view>
    <switch checked="{{createSubjects}}" color="#7061D8" bindchange="toggleCreate"/>
   </view>
-  <button class="primary" disabled="{{!summary.importable}}" bindtap="confirmImport">确认导入 {{summary.importable}} 条</button>
+  <button class="primary" disabled="{{!summary.importable || importing || importDone || editingPlan}}" bindtap="confirmImport">{{importing?'正在导入…':importDone?'已导入':'确认导入 '+summary.importable+' 条'}}</button>
  </view>
 </view>

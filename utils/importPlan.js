@@ -136,7 +136,7 @@ function parseDateToken(text, today, allowTimeOnly) {
     if (m) {
       let hour = periodHour(Number(m[2]), m[1])
       if (hour > 23) return null
-      return { deadline: today + ' ' + pad(hour) + ':' + pad(Number(m[3] || 0)), date: today, hasTime: true }
+      return { deadline: today + ' ' + pad(hour) + ':' + pad(Number(m[3] || 0)), date: today, hasTime: true, hasDate: false }
     }
   }
   return null
@@ -177,7 +177,15 @@ function parseLine(rawLine, index, ctx) {
   if (!work) return null
 
   const warnings = []
-  let dateInfo = null
+  let dateInfo = null, dateWarning = ''
+  let estimatedMinutes = null, durationError = false
+  const duration = work.match(/(?:[\[【［]\s*)?(?:预计(?:时长)?|用时|时长)\s*[:：]?\s*([^\]】］]+?)\s*(?:[\]】］])?\s*$/)
+  if (duration) {
+    const value = duration[1].trim().match(/^(\d+)\s*(?:分钟|min)$/i)
+    estimatedMinutes = value ? Number(value[1]) : null
+    durationError = !value || estimatedMinutes < 5 || estimatedMinutes > 1440 || estimatedMinutes % 5 !== 0
+    work = work.slice(0, duration.index).trim()
+  }
 
   // 1) 优先读括号里的日期；被识别为已知科目的括号不当日期
   const groups = bracketGroups(work)
@@ -232,7 +240,10 @@ function parseLine(rawLine, index, ctx) {
   // 4) 看起来像日期却没解析成功：留在任务名里，但提示用户检查
   if (!dateInfo) {
     const guess = work.match(/\d{4}\s*[-/.]\s*\d{1,2}\s*[-/.]\s*\d{1,2}|\d{1,2}\s*月\s*\d{1,2}\s*[日号]?|\d{1,2}\s*[:：]\s*\d{2}/)
-    if (guess) warnings.push('没能识别日期「' + guess[0].replace(/\s+/g, ' ') + '」，已留在任务名里')
+    if (guess) {
+      dateWarning = '没能识别日期「' + guess[0].replace(/\s+/g, ' ') + '」，已留在任务名里'
+      warnings.push(dateWarning)
+    }
   }
 
   // 5) 科目：括号 > @科目 > 科目：xxx > 行首已知科目
@@ -284,6 +295,8 @@ function parseLine(rawLine, index, ctx) {
     return {
       key: 'row-' + index, line: rawLine, title: title || '', subjectName: subjectName || '其他', subjectId: '',
       newSubject: false, deadline: ctx.today + ' 23:59', plannedDate: ctx.today,
+      hasDate: !!dateInfo && dateInfo.hasDate !== false, hasSubject: !!subjectName, estimatedMinutes, durationError,
+      defaulted: !dateInfo, dateWarning,
       metaText: '', status: 'invalid', tone: 'danger', badge: '无法导入',
       reason: !title ? '没有任务名称' : '任务名称超过 ' + MAX_TITLE + ' 个字',
       importable: false,
@@ -303,8 +316,9 @@ function parseLine(rawLine, index, ctx) {
       subject = { id: '', name: subjectName }
       warnings.push('将新建科目「' + subjectName + '」')
     } else {
-      if (subjectName) warnings.push('科目「' + subjectName + '」不存在，归入「其他」')
-      subject = { id: 'other', name: '其他' }
+      const fallback = ctx.subjects.find(item => item.id === 'other') || ctx.subjects[0] || { id: 'other', name: '其他' }
+      if (subjectName) warnings.push('科目「' + subjectName + '」不存在，归入「' + fallback.name + '」')
+      subject = { id: fallback.id, name: fallback.name }
     }
   }
   // 同一段文本里后面再出现这个科目名时，按同一个新科目处理
@@ -322,6 +336,8 @@ function parseLine(rawLine, index, ctx) {
     return {
       key: 'row-' + index, line: rawLine, title, subjectName: subject.name, subjectId: subject.id,
       newSubject: !subject.id, deadline, plannedDate, metaText,
+      hasDate: !!dateInfo && dateInfo.hasDate !== false, hasSubject: !!subjectName, estimatedMinutes, durationError,
+      defaulted: !dateInfo, dateWarning,
       status: 'duplicate', tone: 'muted', badge: '重复',
       reason: duplicateOf === '已有任务' ? '与已有任务重复，导入时跳过' : '与' + duplicateOf + '重复，导入时跳过',
       importable: false,
@@ -332,6 +348,8 @@ function parseLine(rawLine, index, ctx) {
   return {
     key: 'row-' + index, line: rawLine, title, subjectName: subject.name, subjectId: subject.id,
     newSubject: !subject.id, deadline, plannedDate, metaText,
+    hasDate: !!dateInfo && dateInfo.hasDate !== false, hasSubject: !!subjectName, estimatedMinutes, durationError,
+    defaulted: !dateInfo, dateWarning,
     status: warnings.length ? 'warn' : 'ok',
     tone: warnings.length ? 'warning' : 'success',
     badge: warnings.length ? '需注意' : '可导入',
@@ -359,9 +377,13 @@ function parsePlan(text, options) {
 
   const lines = String(text || '').split(/\r?\n/)
   const rows = []
-  for (let i = 0; i < lines.length && rows.length < MAX_ROWS; i++) {
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*```/.test(lines[i])) continue
     const row = parseLine(lines[i], i, ctx)
-    if (row) rows.push(row)
+    if (row) {
+      if (rows.length >= MAX_ROWS) throw new Error('一次最多导入 ' + MAX_ROWS + ' 条任务，请分批粘贴')
+      rows.push(row)
+    }
   }
 
   const importable = rows.filter(r => r.importable)

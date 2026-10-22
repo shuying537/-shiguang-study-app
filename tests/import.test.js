@@ -152,3 +152,19 @@ test('关闭自动创建科目时，导入任务归入其他', () => {
   assert.equal(result.added[0].subjectId, 'other')
   assert.equal(store.getData().subjects.length, 1)
 })
+
+test('导入保存预计时长，非法时长和日期不会顺带创建空科目', () => {
+  store.clearAll()
+  const deadline=store.addDays(store.dateKey(),1)+' 20:00'
+  const result=store.importTasks([
+    {title:'练习',subjectName:'数学',deadline,estimatedMinutes:45},
+    {title:'坏时长',subjectName:'不应创建一',deadline,estimatedMinutes:32},
+    {title:'坏日期',subjectName:'不应创建二',deadline:'2026-02-30 20:00',estimatedMinutes:30},
+    {title:'旧格式',subjectId:'other',deadline},
+  ])
+  assert.deepEqual(result.added.map(t=>t.estimatedMinutes),[45,null])
+  assert.equal(result.skipped.length,2)
+  assert.deepEqual(result.created.map(s=>s.name),['数学'])
+  assert.equal(store.getData().records.length,0,'预计时长不会生成实际学习记录')
+  assert.equal(store.undoImport().removed,2)
+})

@@ -14,7 +14,7 @@ class ClockDate extends Date {
 }
 const plain = value => JSON.parse(JSON.stringify(value))
 function setup(seed) {
-  const memory = {}, module = { exports: {} }, notices = [], navigation = []
+  const memory = {}, module = { exports: {} }, notices = [], navigation = [], chartCalls = []
   const wx = {
     getStorageSync(key) { return memory[key] === undefined ? '' : plain(memory[key]) },
     setStorageSync(key,value) { memory[key] = plain(value) },
@@ -22,7 +22,8 @@ function setup(seed) {
     setNavigationBarColor() {}, setTabBarStyle() {}, getAppBaseInfo() { return { theme: 'light' } },
     showToast(value) { notices.push(value.title) }, stopPullDownRefresh() {}, nextTick() {},
     navigateTo(value) { navigation.push(value.url) }, switchTab(value) { navigation.push(value.url) }, navigateBack() {},
-    showModal(value) { value.success({confirm:true}) }, setClipboardData(value) { value.success() }
+    showModal(value) { value.success({confirm:true}) }, setClipboardData(value) { value.success() },
+    createSelectorQuery() { return { in() { return this }, select() { return this }, boundingClientRect(cb) { cb({ left: 0, width: 300 }); return this }, exec() {} } }
   }
   vm.runInNewContext(source, { module, wx, Date: ClockDate }, { filename: 'utils/store.js' })
   const store = module.exports
@@ -35,7 +36,7 @@ function setup(seed) {
     let config
     vm.runInNewContext(fs.readFileSync(path.join(root,'pages',name,name+'.js'),'utf8'), {
       wx, Date: ClockDate, Page(value) { config = value },
-      require(id) { if(id.endsWith('/store'))return store;if(id.endsWith('/ui'))return ui;return {setup(){}} },
+      require(id) { if(id.endsWith('/store'))return store;if(id.endsWith('/ui'))return ui;if(id.endsWith('/charts'))return {setup(page,id){chartCalls.push(id)}};return {setup(){}} },
       setTimeout() { return 1 }, clearTimeout() {}
     }, { filename: name+'.js' })
     config.data = plain(config.data)
@@ -44,7 +45,7 @@ function setup(seed) {
     if(config.onShow)config.onShow()
     return config
   }
-  return { store, memory, wx, page, notices, navigation, ui }
+  return { store, memory, wx, page, notices, navigation, ui, chartCalls }
 }
 function task(store, changes = {}) {
   return store.saveTask(Object.assign({title:'数学练习',subjectId:'other',plannedDate:'2026-10-15',deadline:'2026-10-18 23:59',estimatedMinutes:30},changes))
@@ -173,16 +174,29 @@ test('record changes recalculate actual totals; deleting a task retains its reco
   store.deleteRecord(r.id)
   assert.equal(store.stats(store.getData(),store.weekDays()).total,0)
 })
-test('dates, task estimates, duplicate renames and reserved subject are validated', () => {
+test('dates, task estimates and duplicate renames are validated', () => {
   const {store}=setup(),a=store.addSubject('数学'),b=store.addSubject('英语')
   assert.throws(()=>task(store,{plannedDate:'2026-10-19'}),/计划日期/)
   assert.throws(()=>task(store,{deadline:'2026-02-30 20:00'}),/有效截止/)
   assert.throws(()=>task(store,{estimatedMinutes:7}),/预计时长/)
   assert.throws(()=>store.updateSubject(a.id,b.name),/同名/)
-  assert.throws(()=>store.deleteSubject('other'),/不可删除/)
   for(const duration of [0,-5,7,1500])assert.throws(()=>record(store,{duration}),/时长/)
   assert.throws(()=>record(store,{date:'2026-10-08'}),/自然日/)
   assert.throws(()=>record(store,{date:'2026-10-16'}),/自然日/)
+})
+test('the default subject can be deleted once another subject exists', () => {
+  const {store}=setup()
+  assert.throws(()=>store.deleteSubject('other'),/至少保留一个科目/)
+  store.addSubject('数学')
+  const goal=store.saveGoal({title:'期末周',date:store.addDays(store.dateKey(),10),subjectIds:['other'],note:''})
+  record(store)
+  store.deleteSubject('other')
+  const d=store.getData()
+  assert.ok(!d.subjects.some(item=>item.id==='other'))
+  assert.equal(d.subjects[0].name,'数学')
+  assert.equal(d.goals.find(item=>item.id===goal.id).subjectIds.length,0)
+  assert.equal(d.records[0].subjectName,'其他')
+  assert.ok(!store.getData().subjects.some(item=>item.id==='other'))
 })
 test('old record may keep original date while changing its content', () => {
   const {store}=setup(),d=store.getData()
@@ -213,6 +227,14 @@ test('home displays custom subjects, updates immediately and supports undo', () 
   home.undo()
   assert.equal(home.data.subjects[0].text,'0.0h')
   assert.equal(home.data.subjects[0].canDecrease,false)
+})
+test('statistics page redraws both charts after detail toggles', () => {
+  const {page,chartCalls}=setup(),stats=page('data')
+  stats.showAll()
+  assert.deepEqual(chartCalls,['ring','trend'])
+  chartCalls.length=0
+  stats.trendTap({detail:{x:120}})
+  assert.deepEqual(chartCalls,['ring','trend'])
 })
 test('plan filters never count legacy abandonment as completion', () => {
   const {store,page}=setup(),d=store.getData()
